@@ -98,19 +98,48 @@ class Asociacion:
         self.socios_activos_mujeres = self._a_numero(registro.get("socios_activos_mujeres"))
         self.socios_activos_hombres = self._a_numero(registro.get("socios_activos_hombres"))
         self.total_beneficiarios = self._a_numero(registro.get("total_beneficiarios"))
-        self.total_sembrada_en_ha = self._a_numero(registro.get("total_sembrada_en_ha"))
+        self.total_sembrada_en_ha = self._a_hectareas(registro.get("total_sembrada_en_ha"))
         self.cual_es_el_rendimiento = self._a_numero(registro.get("cual_es_el_rendimiento"))
-        self.area_disponible_en_ha = self._a_numero(registro.get("area_disponible_en_ha"))
+        self.area_disponible_en_ha = self._a_hectareas(registro.get("area_disponible_en_ha"))
 
-    _PATRON_NUMERO = re.compile(r"[-+]?\d(?:[\d.,]*\d)?")
+    _PATRON_NUMERO = re.compile(r"[-+]?\d+(?:[\d.,]*\d)?")
+    _PATRON_FECHA = re.compile(
+        r"^\d{1,2}\s*[-/]\s*(?:\d{1,2}\s*[-/]\s*\d{2,4}|[a-záéíóú]{3,})",
+        re.IGNORECASE,
+    )
+    _PATRON_FRACCION = re.compile(r"^\d+\s*/\s*\d+\b")
+    _PATRON_METROS_CUADRADOS = re.compile(
+        r"(metros\s*cuadrados|cuadrados|\bm2\b|m\s*[²2]\b|mts\s*[²2]|mtr\s*[²2]|\bmetros\b)",
+        re.IGNORECASE,
+    )
+    _PATRON_NO_AREA = re.compile(
+        r"(litros?|toneladas?|huevos?|gallinas?|pollos?|vacas?|cabezas?|"
+        r"estanques?|pocetas?|posetas?|pesetas?|colmenas?|unidades?\s+de|[%])",
+        re.IGNORECASE,
+    )
 
     @staticmethod
     def _a_numero(valor) -> float:
-        """Convierte texto libre de la API a float (maneja "1 Ha", "1,5" y "6,400.0");
-        si no es un número válido, retorna 0.0 para no interrumpir el programa."""
+        """Convierte texto libre de la API a float de forma fiel al valor numérico
+        del dataset. Maneja comas (decimal o miles), fracciones ("1/4"), texto con
+        el número en cualquier posición ("Disponibles 80 Ha") y descarta fechas
+        ("1-Feb"). Si no contiene un número válido, retorna 0.0."""
         if valor is None:
             return 0.0
-        coincidencia = Asociacion._PATRON_NUMERO.match(str(valor).strip())
+        texto = str(valor).strip()
+        if not texto:
+            return 0.0
+        if texto[:2].lower() == "o.":  # tipeo frecuente: "o.5" en vez de "0.5"
+            texto = "0." + texto[2:]
+        if Asociacion._PATRON_FECHA.match(texto):
+            return 0.0
+        if Asociacion._PATRON_FRACCION.match(texto):
+            numerador, resto = texto.split("/", 1)
+            try:
+                return float(numerador.strip()) / float(resto.split()[0].strip())
+            except (ValueError, ZeroDivisionError):
+                return 0.0
+        coincidencia = Asociacion._PATRON_NUMERO.search(texto)
         if not coincidencia:
             return 0.0
         numero = coincidencia.group(0)
@@ -123,6 +152,20 @@ class Asociacion:
             return float(numero)
         except (ValueError, TypeError):
             return 0.0
+
+    def _a_hectareas(self, valor) -> float:
+        """Igual que `_a_numero` pero para los campos de área del dataset:
+        convierte a hectáreas los valores en metros cuadrados (m²), descarta los
+        que expresan cantidades que NO son área (litros, huevos, estanques, ...)."""
+        numero = self._a_numero(valor)
+        if numero == 0.0 or valor is None:
+            return numero
+        texto = str(valor)
+        if self._PATRON_NO_AREA.search(texto):
+            return 0.0
+        if self._PATRON_METROS_CUADRADOS.search(texto):
+            numero /= 10000.0
+        return numero
 
     def obtener_atributo(self, nombre: str) -> float:
         return getattr(self, nombre, 0.0)
