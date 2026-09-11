@@ -1,12 +1,3 @@
-"""
-main.py
-
-Punto de entrada de la aplicación. Consume la API, arma el menú por
-consola y usa polimórficamente el algoritmo elegido por el usuario.
-Toda la lógica de negocio (API, modelo de datos, algoritmos) vive en
-`operaciones.py`; aquí solo hay flujo e interacción con el usuario.
-"""
-
 import time
 from operaciones import (
     URL_API,
@@ -19,7 +10,7 @@ from operaciones import (
 
 
 def cargar_asociaciones() -> list:
-    """Consulta la API y convierte cada registro en un objeto Asociacion."""
+    #Consulta la API y convierte cada registro en un objeto Asociacion.
     cliente = ClienteAPI(URL_API)
     datos = cliente.obtener_datos()
     return [Asociacion(registro) for registro in datos]
@@ -56,7 +47,6 @@ def elegir_algoritmo():
 
 
 def verificar_orden(resultado, clave) -> bool:
-    """CA 2.4 - Exactitud: confirma que el resultado quedó descendente."""
     return all(clave(resultado[i]) >= clave(resultado[i + 1]) for i in range(len(resultado) - 1))
 
 

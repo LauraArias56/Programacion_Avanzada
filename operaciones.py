@@ -1,19 +1,3 @@
-"""
-operaciones.py
-
-Contiene todas las clases del proyecto, agrupadas por responsabilidad
-en tres secciones:
-
-  1. CONEXIÓN A LA API       -> APIException, ClienteAPI
-  2. MODELO DE DATOS         -> Asociacion
-  3. ALGORITMOS DE ORDENAMIENTO -> AlgoritmoOrdenamiento (clase abstracta)
-                                   y sus 9 subclases concretas
-     + FabricaAlgoritmos (registro central de los algoritmos)
-
-`main.py` solo importa de aquí y arma el menú; ninguna lógica de
-negocio vive en `main.py`.
-"""
-
 from abc import ABC, abstractmethod
 import re
 import struct
@@ -29,12 +13,12 @@ URL_API = "https://www.datos.gov.co/resource/cuec-zf9t.json"
 
 
 class APIException(Exception):
-    """Excepción propia para cualquier fallo al consultar la API externa."""
+    #Excepción propia para cualquier fallo al consultar la API externa.
     pass
 
 
 class ClienteAPI:
-    """Encapsula la conexión HTTP a la API SODA2 y el manejo de sus errores."""
+    #Encapsula la conexión HTTP a la API SODA2 y el manejo de sus errores.
 
     def __init__(self, url: str, limite: int = 1000):
         self.url = url
@@ -42,7 +26,7 @@ class ClienteAPI:
         self._headers = {"User-Agent": "Mozilla/5.0 (compatible; ProyectoOrdenamiento/1.0)"}
 
     def obtener_datos(self) -> list:
-        """Consulta la API y retorna la lista de registros (dict). Lanza APIException si falla."""
+        #Consulta la API y retorna la lista de registros (dict). Lanza APIException si falla.
         try:
             respuesta = requests.get(
                 self.url, params={"$limit": self.limite}, headers=self._headers, timeout=15
@@ -73,7 +57,7 @@ class ClienteAPI:
 # =====================================================================
 
 # Campos numéricos que el usuario puede elegir para ordenar:
-# codigo -> (etiqueta visible, nombre del atributo en Asociacion)
+
 CAMPOS_ORDENABLES = {
     "1": ("Número total de asociados", "numero_total_de_asociados"),
     "2": ("Número de asociados activos", "numero_de_asociados_activos"),
@@ -87,7 +71,7 @@ CAMPOS_ORDENABLES = {
 
 
 class Asociacion:
-    """Representa un registro (fila) del dataset, con sus campos ya convertidos a número."""
+    #Representa un registro (fila) del dataset, con sus campos ya convertidos a número.
 
     def __init__(self, registro: dict):
         self.nombre = registro.get("nombre_de_la_asociacion", "Sin nombre").strip().title()
@@ -120,10 +104,6 @@ class Asociacion:
 
     @staticmethod
     def _a_numero(valor) -> float:
-        """Convierte texto libre de la API a float de forma fiel al valor numérico
-        del dataset. Maneja comas (decimal o miles), fracciones ("1/4"), texto con
-        el número en cualquier posición ("Disponibles 80 Ha") y descarta fechas
-        ("1-Feb"). Si no contiene un número válido, retorna 0.0."""
         if valor is None:
             return 0.0
         texto = str(valor).strip()
@@ -154,9 +134,6 @@ class Asociacion:
             return 0.0
 
     def _a_hectareas(self, valor) -> float:
-        """Igual que `_a_numero` pero para los campos de área del dataset:
-        convierte a hectáreas los valores en metros cuadrados (m²), descarta los
-        que expresan cantidades que NO son área (litros, huevos, estanques, ...)."""
         numero = self._a_numero(valor)
         if numero == 0.0 or valor is None:
             return numero
@@ -179,13 +156,6 @@ class Asociacion:
 # =====================================================================
 
 class AlgoritmoOrdenamiento(ABC):
-    """
-    Clase base abstracta. Todo algoritmo concreto debe implementar
-    `ordenar(datos, clave)`, donde `clave` es una función que extrae
-    el valor numérico de comparación de cada objeto. Gracias a este
-    contrato común, la aplicación usa cualquier algoritmo de forma
-    POLIMÓRFICA, sin importar cuál fue elegido en tiempo de ejecución.
-    """
 
     nombre = "Algoritmo base"
 
@@ -195,7 +165,7 @@ class AlgoritmoOrdenamiento(ABC):
 
 
 class OrdenamientoBurbuja(AlgoritmoOrdenamiento):
-    """Burbuja - O(n²): intercambia elementos adyacentes fuera de orden."""
+    #Burbuja - O(n²): intercambia elementos adyacentes fuera de orden.
     nombre = "Burbuja"
 
     def ordenar(self, datos, clave):
@@ -213,7 +183,7 @@ class OrdenamientoBurbuja(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoSeleccion(AlgoritmoOrdenamiento):
-    """Selección - O(n²): busca el mínimo restante y lo coloca en su posición."""
+    #Selección - O(n²): busca el mínimo restante y lo coloca en su posición.
     nombre = "Selección"
 
     def ordenar(self, datos, clave):
@@ -230,7 +200,7 @@ class OrdenamientoSeleccion(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoInsercion(AlgoritmoOrdenamiento):
-    """Inserción - O(n²): inserta cada elemento en la posición correcta de la parte ya ordenada."""
+    #Inserción - O(n²): inserta cada elemento en la posición correcta de la parte ya ordenada.
     nombre = "Inserción"
 
     def ordenar(self, datos, clave):
@@ -247,7 +217,7 @@ class OrdenamientoInsercion(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoMerge(AlgoritmoOrdenamiento):
-    """Merge Sort - O(n log n): divide la lista y mezcla las mitades ya ordenadas."""
+    #Merge Sort - O(n log n): divide la lista y mezcla las mitades ya ordenadas.
     nombre = "Merge (mezcla)"
 
     def ordenar(self, datos, clave):
@@ -273,7 +243,7 @@ class OrdenamientoMerge(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoQuick(AlgoritmoOrdenamiento):
-    """Quick Sort - O(n log n) promedio: particiona la lista alrededor de un pivote."""
+    #Quick Sort - O(n log n) promedio: particiona la lista alrededor de un pivote.
     nombre = "Quick (rápido)"
 
     def ordenar(self, datos, clave):
@@ -300,7 +270,7 @@ class OrdenamientoQuick(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoHeap(AlgoritmoOrdenamiento):
-    """Heap Sort - O(n log n): construye un montículo máximo y extrae repetidamente la raíz."""
+    #Heap Sort - O(n log n): construye un montículo máximo y extrae repetidamente la raíz.
     nombre = "Heap (montículo)"
 
     def ordenar(self, datos, clave):
@@ -326,7 +296,7 @@ class OrdenamientoHeap(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoCounting(AlgoritmoOrdenamiento):
-    """Counting Sort - O(n+u): cuenta ocurrencias de cada valor distinto y calcula posiciones."""
+    #Counting Sort - O(n+u): cuenta ocurrencias de cada valor distinto y calcula posiciones.
     nombre = "Counting (conteo)"
 
     def ordenar(self, datos, clave):
@@ -353,14 +323,14 @@ class OrdenamientoCounting(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoRadix(AlgoritmoOrdenamiento):
-    """Radix Sort (LSD) - O(d·n): ordena por dígitos usando los bits de cada valor como clave entera."""
+    #Radix Sort (LSD) - O(d·n): ordena por dígitos usando los bits de cada valor como clave entera.
     nombre = "Radix (dígitos)"
 
     _MASCARA_BITS = (1 << 64) - 1
 
     @staticmethod
     def _clave_entera(valor: float) -> int:
-        """Convierte un float a un entero que preserva su orden exacto (incluye negativos)."""
+        #Convierte un float a un entero que preserva su orden exacto (incluye negativos).
         bits = struct.unpack("<Q", struct.pack("<d", valor))[0]
         if bits >> 63:
             return bits ^ OrdenamientoRadix._MASCARA_BITS
@@ -398,7 +368,7 @@ class OrdenamientoRadix(AlgoritmoOrdenamiento):
 
 
 class OrdenamientoBucket(AlgoritmoOrdenamiento):
-    """Bucket Sort - O(n+k) promedio: distribuye en cubetas y ordena cada una por inserción."""
+    #Bucket Sort - O(n+k) promedio: distribuye en cubetas y ordena cada una por inserción.
     nombre = "Bucket (cubetas)"
 
     def ordenar(self, datos, clave):
@@ -425,7 +395,7 @@ class OrdenamientoBucket(AlgoritmoOrdenamiento):
 
 
 class FabricaAlgoritmos:
-    """Registro centralizado de los 9 algoritmos disponibles (patrón Factory)."""
+    #Registro centralizado de los 9 algoritmos disponibles (patrón Factory).
 
     _algoritmos = {
         "1": OrdenamientoBurbuja(),
