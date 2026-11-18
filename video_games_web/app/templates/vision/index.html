@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Vision · Video Games Sales{% endblock %}
+{% block title %}Ventas desde una imagen - Video Games Sales{% endblock %}
 
 {% block head %}
   <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -10,9 +10,10 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
   <div>
-    <h1 class="h4 mb-0">Clasificacion de imagenes</h1>
+    <h1 class="h4 mb-0">Estimar ventas desde una imagen</h1>
     <p class="text-muted mb-0 small">
-      Captura una foto o sube una imagen y el modelo identificara una de las 10 clases de CIFAR-10.
+      Sube una portada o captura: el modelo detecta el tema visual, infiere un
+      perfil de videojuego y consulta el modelo de ventas globales.
     </p>
   </div>
   <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('vision.history') }}">Historial de vision</a>
@@ -20,8 +21,14 @@
 
 {% if not health or not info %}
   <div class="alert alert-warning small">
-    La Vision API no esta disponible en este momento. El historial sigue accesible, pero
-    no se pueden generar nuevas clasificaciones. Verifica el servicio en el puerto 8100.
+    La Vision API no esta disponible. El historial sigue accesible, pero no se
+    pueden clasificar imagenes nuevas. Verifica el servicio en el puerto 8100.
+  </div>
+{% endif %}
+{% if not sales_health or not sales_info %}
+  <div class="alert alert-warning small">
+    La API de ventas no esta disponible. La imagen puede clasificarse, pero no
+    se puede estimar la venta global hasta que el servicio del puerto 8000 vuelva.
   </div>
 {% endif %}
 
@@ -38,7 +45,7 @@
             <div class="vision-placeholder-icon">[ + ]</div>
             <p class="mb-1 fw-semibold">Sin imagen seleccionada</p>
             <p class="small text-muted mb-0">
-              Activa la camara o elige un archivo JPG, PNG o WebP.
+              Activa la camara o elige una portada/captura JPG, PNG o WebP.
             </p>
           </div>
         </div>
@@ -58,7 +65,7 @@
         <form id="vision-form" method="post" action="{{ url_for('vision.predict') }}" enctype="multipart/form-data">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="source" id="vision-source" value="upload">
-          <label for="vision-file" class="form-label small mb-1">O sube una imagen</label>
+          <label for="vision-file" class="form-label small mb-1">O sube una imagen del videojuego</label>
           <input class="form-control" type="file" id="vision-file" name="image"
                  accept="image/jpeg,image/png,image/webp">
           <div class="form-text">
@@ -66,7 +73,7 @@
             <code>localhost</code> o mediante HTTPS.
           </div>
           <button type="submit" class="btn btn-success mt-3" id="vision-submit">
-            Clasificar imagen
+            Clasificar y estimar ventas
           </button>
         </form>
 
@@ -77,20 +84,114 @@
 
   <div class="col-lg-5">
     {% if prediction %}
+      {% set sale = prediction.sales_prediction %}
       <div class="card shadow-sm border-primary mb-4">
         <div class="card-body">
-          <div class="text-uppercase text-muted small mb-1">Resultado de la clasificacion</div>
-          <div class="display-6 fw-bold text-primary text-capitalize">{{ prediction.label_es }}</div>
-          <div class="text-muted mb-3">
-            {{ prediction.label }} ·
-            {{ "%.1f"|format(prediction.confidence|float * 100) }} % de confianza
-          </div>
-          <div class="progress vision-confidence mb-4" role="progressbar"
-               aria-valuenow="{{ prediction.confidence|float * 100 }}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar" style="width: {{ prediction.confidence|float * 100 }}%"></div>
-          </div>
+          {% if sale %}
+            <div class="text-uppercase text-muted small mb-1">Ventas globales estimadas</div>
+            <div class="display-5 fw-bold text-primary">
+              {{ "%.3f"|format(sale.predicted_sales_millions|float) }}
+            </div>
+            <div class="text-muted mb-3">millones de unidades</div>
+            <div class="small text-muted mb-3">
+              Intervalo 95 %:
+              {{ "%.3f"|format(sale.interval_low|float if sale.interval_low is not none else 0) }} -
+              {{ "%.3f"|format(sale.interval_high|float if sale.interval_high is not none else 0) }}
+              millones
+            </div>
 
-          <h3 class="h6 text-uppercase text-muted mb-2">Top 3</h3>
+            <div class="rounded border bg-light p-3 mb-3">
+              <div class="text-uppercase text-muted small mb-2">Perfil inferido</div>
+              <dl class="row small mb-0">
+                <dt class="col-5 text-muted">Tema visual</dt>
+                <dd class="col-7 text-capitalize mb-1">{{ prediction_theme }}</dd>
+                <dt class="col-5 text-muted">Clase detectada</dt>
+                <dd class="col-7 text-capitalize mb-1">
+                  {{ prediction.label_es }}
+                  ({{ "%.1f"|format(prediction.confidence|float * 100) }} %)
+                </dd>
+                <dt class="col-5 text-muted">Plataforma</dt>
+                <dd class="col-7 mb-1">{{ sale.platform }}</dd>
+                <dt class="col-5 text-muted">Genero</dt>
+                <dd class="col-7 mb-1">{{ sale.genre }}</dd>
+                <dt class="col-5 text-muted">Editorial</dt>
+                <dd class="col-7 mb-1">{{ sale.publisher }}</dd>
+                <dt class="col-5 text-muted">Ano</dt>
+                <dd class="col-7 mb-0">{{ sale.year }}</dd>
+              </dl>
+            </div>
+
+            <div class="alert alert-light border small">
+              La imagen no identifica el titulo real. El sistema usa el tema visual
+              para proponer un perfil y estimar la venta con el modelo de regresion.
+              Puedes corregir el perfil si no coincide con el juego.
+            </div>
+
+            {% if sales_info %}
+              <details class="small mb-3">
+                <summary class="fw-semibold">Ajustar perfil y recalcular</summary>
+                <form method="post" action="{{ url_for('vision.recalculate', prediction_id=prediction.id) }}"
+                      class="row g-2 mt-2">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="col-6">
+                    <label class="form-label mb-1" for="recalc-platform">Plataforma</label>
+                    <select class="form-select form-select-sm" id="recalc-platform" name="platform">
+                      {% for value in sales_info.get("allowed_platforms", []) %}
+                        <option value="{{ value }}" {% if value == sale.platform %}selected{% endif %}>{{ value }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label mb-1" for="recalc-genre">Genero</label>
+                    <select class="form-select form-select-sm" id="recalc-genre" name="genre">
+                      {% for value in sales_info.get("allowed_genres", []) %}
+                        <option value="{{ value }}" {% if value == sale.genre %}selected{% endif %}>{{ value }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-7">
+                    <label class="form-label mb-1" for="recalc-publisher">Editorial</label>
+                    <input class="form-control form-control-sm" id="recalc-publisher"
+                           name="publisher" maxlength="120" value="{{ sale.publisher }}">
+                  </div>
+                  <div class="col-5">
+                    <label class="form-label mb-1" for="recalc-year">Ano</label>
+                    <input class="form-control form-control-sm" id="recalc-year" name="year"
+                           type="number" min="1970" max="2030" value="{{ sale.year }}">
+                  </div>
+                  <div class="col-12">
+                    <button class="btn btn-sm btn-outline-primary" type="submit">Recalcular ventas</button>
+                    <a class="btn btn-sm btn-link"
+                       href="{{ url_for('main.prediction_detail', prediction_id=sale.id) }}">Ver detalle de ventas</a>
+                  </div>
+                </form>
+              </details>
+            {% endif %}
+
+            {% if sale.warnings %}
+              <div class="alert alert-warning small mb-3">
+                <div class="fw-semibold mb-1">Advertencias del modelo de ventas</div>
+                <ul class="mb-0 ps-3">
+                  {% for warning in sale.warnings %}
+                    <li>{{ warning }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="text-uppercase text-muted small mb-1">Resultado de la clasificacion</div>
+            <div class="display-6 fw-bold text-primary text-capitalize">{{ prediction.label_es }}</div>
+            <div class="text-muted mb-3">
+              {{ prediction.label }} -
+              {{ "%.1f"|format(prediction.confidence|float * 100) }} % de confianza
+            </div>
+            <div class="alert alert-secondary small">
+              Esta clasificacion es anterior a la integracion con ventas y no tiene
+              una prediccion economica asociada.
+            </div>
+          {% endif %}
+
+          <h3 class="h6 text-uppercase text-muted mb-2">Top 3 visual</h3>
           <ul class="list-group list-group-flush mb-3">
             {% for item in prediction.top_k %}
               <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
@@ -103,9 +204,9 @@
           </ul>
 
           <div class="small text-muted">
-            Modelo {{ prediction.model_version }}<br>
+            Modelo visual {{ prediction.model_version }}<br>
             Origen: {{ "camara" if prediction.source == "camera" else "archivo" }}
-            {% if prediction.latency_ms %} · {{ "%.0f"|format(prediction.latency_ms) }} ms{% endif %}
+            {% if prediction.latency_ms %} - {{ "%.0f"|format(prediction.latency_ms) }} ms{% endif %}
           </div>
         </div>
       </div>
@@ -114,10 +215,11 @@
         <div class="card-body">
           <h2 class="h6 text-uppercase text-muted mb-3">Como funciona</h2>
           <ol class="small mb-0 ps-3">
-            <li class="mb-2">Activa la camara o selecciona una imagen desde tu equipo.</li>
-            <li class="mb-2">Captura o confirma la imagen y pulsa <strong>Clasificar imagen</strong>.</li>
-            <li class="mb-2">El backend Flask envia la imagen a la Vision API (FastAPI).</li>
-            <li class="mb-0">El resultado se guarda en tu historial con la confianza y el top 3.</li>
+            <li class="mb-2">Activa la camara o selecciona una portada/captura del videojuego.</li>
+            <li class="mb-2">El backend envia la imagen a la Vision API y obtiene el tema visual.</li>
+            <li class="mb-2">Ese tema se traduce en plataforma, genero, editorial y ano aproximados.</li>
+            <li class="mb-2">La API de regresion estima las ventas globales con ese perfil.</li>
+            <li class="mb-0">Puedes ajustar el perfil y recalcular si la inferencia no coincide.</li>
           </ol>
         </div>
       </div>
@@ -125,13 +227,13 @@
 
     <div class="card shadow-sm">
       <div class="card-body">
-        <h2 class="h6 text-uppercase text-muted mb-2">Modelo</h2>
+        <h2 class="h6 text-uppercase text-muted mb-2">Modelos</h2>
         {% if info %}
           <p class="small mb-2">
             {{ info.get("architecture", "MobileNetV3-Small") }} con transfer learning desde ImageNet.
           </p>
           <dl class="row small mb-0">
-            <dt class="col-6 text-muted">Version</dt>
+            <dt class="col-6 text-muted">Version visual</dt>
             <dd class="col-6 text-end">{{ info.get("model_version", "-") }}</dd>
             <dt class="col-6 text-muted">Clases</dt>
             <dd class="col-6 text-end">{{ info.get("num_classes", 10) }}</dd>
@@ -141,6 +243,10 @@
             <dd class="col-6 text-end">
               {{ "%.1f"|format(info.get("metrics", {}).get("test_accuracy", 0) * 100) }} %
             </dd>
+            {% if sales_info %}
+              <dt class="col-6 text-muted">Modelo de ventas</dt>
+              <dd class="col-6 text-end">{{ sales_info.get("model_version", "-") }}</dd>
+            {% endif %}
           </dl>
         {% else %}
           <p class="small text-muted mb-0">Informacion no disponible sin conexion con la Vision API.</p>
@@ -153,7 +259,7 @@
 {% if recent %}
   <div class="card shadow-sm mt-4">
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
-      <span class="fw-semibold">Ultimas clasificaciones</span>
+      <span class="fw-semibold">Ultimas estimaciones desde imagen</span>
       <a class="small" href="{{ url_for('vision.history') }}">Ver todo</a>
     </div>
     <div class="table-responsive">
@@ -161,19 +267,37 @@
         <thead class="table-light">
           <tr>
             <th>Fecha</th>
-            <th>Clase</th>
+            <th>Tema visual</th>
+            <th>Perfil</th>
+            <th class="text-end">Ventas (M)</th>
             <th class="text-end">Confianza</th>
-            <th>Origen</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {% for item in recent %}
+            {% set item_sale = item.sales_prediction %}
             <tr>
               <td class="small text-muted">{{ item.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-              <td class="text-capitalize">{{ item.label_es }}</td>
+              <td>
+                <span class="text-capitalize fw-semibold">{{ item.label_es }}</span>
+                <div class="small text-muted">{{ item.theme or item.label }}</div>
+              </td>
+              <td class="small">
+                {% if item_sale %}
+                  {{ item_sale.platform }} - {{ item_sale.genre }} - {{ item_sale.year }}
+                {% else %}
+                  <span class="text-muted">Sin venta asociada</span>
+                {% endif %}
+              </td>
+              <td class="text-end fw-semibold">
+                {% if item_sale %}
+                  {{ "%.3f"|format(item_sale.predicted_sales_millions|float) }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
               <td class="text-end">{{ "%.1f"|format(item.confidence|float * 100) }} %</td>
-              <td class="small">{{ "Camara" if item.source == "camera" else "Archivo" }}</td>
               <td class="text-end">
                 <a class="btn btn-sm btn-outline-primary"
                    href="{{ url_for('vision.index', prediction_id=item.id) }}">Ver</a>

@@ -35,6 +35,12 @@ class Prediction(db.Model):
     )
 
     user = db.relationship("User", back_populates="predictions")
+    vision_prediction = db.relationship(
+        "VisionPrediction",
+        back_populates="sales_prediction",
+        uselist=False,
+        foreign_keys="VisionPrediction.prediction_id",
+    )
 
     def __repr__(self) -> str:
         return f"<Prediction {self.id} {self.platform}/{self.genre} {self.year}>"

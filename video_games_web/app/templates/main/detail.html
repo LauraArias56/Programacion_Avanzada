@@ -14,6 +14,19 @@
   <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.history') }}">Volver al historial</a>
 </div>
 
+{% if prediction.vision_prediction %}
+  <div class="alert alert-info small d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span>
+      Esta venta se estimo desde una imagen. Tema detectado:
+      <strong class="text-capitalize">{{ prediction.vision_prediction.label_es }}</strong>.
+    </span>
+    <a class="btn btn-sm btn-outline-primary"
+       href="{{ url_for('vision.index', prediction_id=prediction.vision_prediction.id) }}">
+      Ver clasificacion y ajustar perfil
+    </a>
+  </div>
+{% endif %}
+
 <div class="row g-4">
   <div class="col-lg-7">
     <div class="card shadow-sm">

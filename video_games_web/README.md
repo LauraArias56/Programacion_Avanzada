@@ -2,8 +2,9 @@
 
 Aplicacion Flask con frontend Jinja2 + Bootstrap que consume dos APIs FastAPI:
 la prediccion de ventas de videojuegos y un clasificador de imagenes CIFAR-10
-con transfer learning. Guarda ambos historiales en PostgreSQL y registra logs
-estructurados y auditoria de acciones.
+con transfer learning. La clasificacion visual se traduce en un perfil de
+videojuego y alimenta el modelo de ventas. Guarda ambos historiales enlazados
+en PostgreSQL y registra logs estructurados y auditoria de acciones.
 
 La API de regresion original vive en `../API_regresion_lineal_multiple` y **no se
 modifica**: este proyecto la consume por HTTP. El modulo de vision vive en
@@ -17,8 +18,12 @@ Navegador (formulario o camara)
    v
 Flask (webapp :5000)  --httpx-->  FastAPI regresion (api :8000)  -->  modelo joblib
    |                --httpx-->  FastAPI vision (vision :8100)  -->  MobileNetV3
+   |                                      |
+   |                                      +--> perfil inferido del juego
+   |                                           (plataforma, genero, editorial, ano)
    |
-   +--> PostgreSQL (:5432): usuarios, historial, auditoria, vision_predictions
+   +--> PostgreSQL (:5432): usuarios, historial, auditoria,
+                            vision_predictions enlazada a predictions
    +--> logs/app.log, logs/error.log y stdout
 ```
 
@@ -31,7 +36,11 @@ Flask (webapp :5000)  --httpx-->  FastAPI regresion (api :8000)  -->  modelo job
 - Exportacion del historial a CSV.
 - Pagina `/vision`: captura desde camara o subida de imagen JPG/PNG/WebP.
 - Clasificacion CIFAR-10 con confianza y top 3 servida por `../vision_api`.
-- Historial paginado de clasificaciones filtrable por clase.
+- Perfil de videojuego inferido desde el tema visual y prediccion de ventas
+  globales usando la API de regresion.
+- Ajuste manual del perfil (plataforma, genero, editorial y ano) con recalculo.
+- Historial paginado de estimaciones filtrable por tema visual, con enlace a la
+  prediccion de ventas asociada.
 - Visor de auditoria para administradores.
 - Logs JSON con `request_id`, rotacion y redaccion de datos sensibles.
 - Auditoria persistente en PostgreSQL.
@@ -70,6 +79,18 @@ La camara del navegador requiere `localhost` o HTTPS. En Docker Compose la web
 queda en `http://localhost:5000`, por lo que el permiso de camara funciona sin
 configuracion adicional.
 
+### De imagen a venta estimada
+
+1. La imagen se envia a `vision_api` y se obtiene la clase visual dominante.
+2. `app/services/game_profile.py` traduce esa clase en un perfil aproximado
+   (plataforma, genero, editorial y ano).
+3. La webapp envia ese perfil a la API de regresion y guarda la `Prediction`.
+4. `VisionPrediction.prediction_id` enlaza la clasificacion con la venta.
+5. Desde el resultado se puede corregir el perfil y recalcular la estimacion.
+
+La imagen no identifica el titulo real del juego; el perfil es una inferencia
+aproximada y debe revisarse antes de usar la cifra.
+
 Para crear un administrador:
 
 ```bash
@@ -95,7 +116,7 @@ docker compose exec webapp flask create-admin
    cd ../vision_api
    python -m venv .venv
    .venv\Scripts\activate
-   pip install -r requirements-train.txt
+   python -m pip install -r requirements-train.txt
    python -m uvicorn api.main:app --port 8100
    ```
 
@@ -167,6 +188,7 @@ La tabla `audit_logs` registra:
 - `auth.register`, `auth.login_success`, `auth.login_failed`, `auth.logout`
 - `prediction.created`, `prediction.failed`
 - `vision.prediction.created`, `vision.prediction_failed`
+- `vision.prediction.recalculated`, `vision.prediction_recalculation_failed`
 - `admin.audit_viewed`, `admin.created`
 
 Cada registro incluye usuario, accion, estado, IP, user-agent, `request_id`,
@@ -201,7 +223,7 @@ app/
   errors.py            Paginas 403/404/500/503
   cli.py               create-admin, audit-prune
   models/              User, Prediction, AuditLog, VisionPrediction
-  services/            ApiClient, VisionApiClient httpx, record_audit
+  services/            ApiClient, VisionApiClient, game_profile, record_audit
   blueprints/          auth, main, admin, vision
   forms/               WTForms
   templates/           Jinja2 + Bootstrap 5

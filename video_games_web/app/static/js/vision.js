@@ -186,7 +186,7 @@
 
     sending = true;
     updateSubmitState();
-    submitButton.textContent = "Clasificando...";
+    submitButton.textContent = "Estimando ventas...";
 
     try {
       const response = await fetch(form.action, {
@@ -219,7 +219,7 @@
       showError(error.message || "No se pudo clasificar la imagen.");
     } finally {
       sending = false;
-      submitButton.textContent = "Clasificar imagen";
+      submitButton.textContent = "Clasificar y estimar ventas";
       updateSubmitState();
     }
   });

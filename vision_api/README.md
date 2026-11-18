@@ -49,7 +49,7 @@ Los datos se guardan en `data/` y no se versionan.
 cd vision_api
 python -m venv .venv
 .\.venv\Scripts\activate
-pip install -r requirements-train.txt
+python -m pip install -r requirements-train.txt
 python train.py
 ```
 
@@ -157,6 +157,14 @@ python -m pytest -q
 
 Incluyen endpoints con un servicio simulado y una prueba de humo del modelo
 real cuando existe `artifacts/model.pt`.
+
+## Integracion con ventas
+
+La webapp Flask usa la clase visual para inferir un perfil aproximado del
+videojuego (plataforma, genero, editorial y ano) y envia ese perfil a la API de
+regresion. La prediccion de ventas queda enlazada a la clasificacion visual y
+puede recalcularse si el usuario corrige el perfil. La imagen no identifica el
+titulo real del juego.
 
 ## Limitaciones
 

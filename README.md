@@ -10,7 +10,8 @@ aplicacion web:
 
 La webapp Flask conserva el flujo original de ventas y agrega el modulo de
 vision como una funcionalidad aditiva, sin romper la API ni el frontend
-existentes.
+existentes. La imagen se traduce en un perfil aproximado del videojuego
+(plataforma, genero, editorial y ano) y ese perfil alimenta el modelo de ventas.
 
 ## Arquitectura
 
@@ -24,12 +25,15 @@ Navegador (Bootstrap + JS)
                     v                                               v
         FastAPI regresion :8000                         FastAPI vision :8100
         modelo joblib (ventas)                          MobileNetV3-Small (CIFAR-10)
-                    |                                               |
-                    +-----------------------+-----------------------+
+                    ^                                               |
+                    |                                               v
+                    +------------- perfil inferido <----------------+
+                                  plataforma, genero,
+                                  editorial y ano
                                             |
                                             v
                                  PostgreSQL :5432
-                    usuarios, predictions, vision_predictions, audit_logs
+          usuarios, predictions, vision_predictions (enlazadas), audit_logs
 ```
 
 ### Componentes
@@ -49,7 +53,8 @@ Navegador (Bootstrap + JS)
 | Modelo con transfer learning | MobileNetV3-Small preentrenado en ImageNet, backbone congelado y cabeza reentrenada |
 | Backend / API | Flask recibe la imagen; FastAPI `/predict` valida, clasifica y devuelve top-k, confianza, latencia y version |
 | Frontend con captura | Pagina `/vision` con `getUserMedia`, captura a canvas, subida JPG/PNG/WebP y visualizacion de resultados |
-| Persistencia | Tabla `vision_predictions` en PostgreSQL + auditoria de acciones |
+| Integracion con ventas | La clase visual se traduce en un perfil de videojuego y se envia a la API de regresion para estimar ventas globales |
+| Persistencia | `vision_predictions` enlazada con `predictions` en PostgreSQL + auditoria de acciones |
 | Docker | Servicio `vision` en Docker Compose con healthcheck y modelo incluido |
 | Git y documentacion | Repositorio Git, README raiz, README de vision y README de la webapp |
 
@@ -70,34 +75,175 @@ Navegador (Bootstrap + JS)
 El checkpoint, las metricas completas y las figuras estan en
 `vision_api/artifacts/`.
 
-## Arranque rapido con Docker
+## Como ejecutar con Docker
 
-Requisitos: Docker Desktop con Docker Compose.
+Docker Compose levanta PostgreSQL, la API de ventas, la Vision API y la webapp
+Flask con un solo comando. El checkpoint del modelo de vision ya esta incluido,
+por lo que no hace falta entrenar nada.
+
+### Requisitos
+
+- Docker Desktop instalado y en ejecucion.
+- Docker Compose v2 (`docker compose version`).
+- Puertos libres: `5000` (webapp), `8000` (API de ventas), `8100` (Vision API)
+  y `5432` (PostgreSQL).
+- Si ya tienes un PostgreSQL local usando `5432`, cambia `POSTGRES_PORT` en
+  `.env`; en la seccion de problemas se explica.
+
+### 1. Preparar el archivo `.env`
+
+Todos los comandos se ejecutan desde `video_games_web`, porque los contextos de
+construccion apuntan a las carpetas de las APIs.
+
+PowerShell:
 
 ```powershell
 cd video_games_web
 Copy-Item .env.example .env
-# edita .env y cambia SECRET_KEY y POSTGRES_PASSWORD
-docker compose up --build
 ```
 
-Servicios:
+Linux/macOS:
+
+```bash
+cd video_games_web
+cp .env.example .env
+```
+
+Edita `.env` y cambia al menos:
+
+```env
+SECRET_KEY=una-clave-larga-y-aleatoria
+POSTGRES_PASSWORD=una-contrasena-segura
+```
+
+Opcionalmente puedes cambiar los puertos publicados:
+
+```env
+WEBAPP_PORT=5000
+API_PORT=8000
+VISION_PORT=8100
+POSTGRES_PORT=5432
+```
+
+`POSTGRES_PORT` solo afecta al puerto expuesto en tu equipo. Dentro de Docker,
+la webapp sigue usando `postgres:5432`.
+
+### 2. Construir y levantar los servicios
+
+```powershell
+docker compose up --build -d
+```
+
+La primera ejecucion puede tardar varios minutos porque descarga las imagenes
+base e instala PyTorch para la Vision API. El contenedor `webapp` aplica las
+migraciones automaticamente (`flask db upgrade`) antes de arrancar Gunicorn.
+
+### 3. Verificar que todo este arriba
+
+```powershell
+docker compose ps
+```
+
+Deben aparecer `postgres`, `api`, `vision` y `webapp`. `postgres`, `api` y
+`vision` deben estar `healthy`. Tambien puedes probar las APIs:
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/health
+Invoke-RestMethod http://localhost:8100/health
+```
+
+Linux/macOS:
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8100/health
+```
 
 | Servicio | URL |
 |---|---|
-| Webapp | <http://localhost:5000> |
-| API de ventas | <http://localhost:8000/docs> |
-| Vision API | <http://localhost:8100/docs> |
-| PostgreSQL | `localhost:5432` |
+| Webapp Flask | <http://localhost:5000> |
+| API de ventas | <http://localhost:8000> |
+| Swagger de ventas | <http://localhost:8000/docs> |
+| Vision API | <http://localhost:8100> |
+| Swagger de vision | <http://localhost:8100/docs> |
+| PostgreSQL | `localhost:5432` o el valor de `POSTGRES_PORT` |
 
-Crea un administrador si lo necesitas:
+### 4. Usar la aplicacion
+
+1. Abre <http://localhost:5000>.
+2. Registrate o inicia sesion.
+3. Entra en **Ventas por imagen**.
+4. Sube una portada/captura o usa la camara.
+5. Revisa la venta estimada y corrige el perfil si es necesario.
+6. Consulta el historial de vision o el historial de ventas.
+
+La camara funciona en `localhost` o mediante HTTPS. Para probar sin camara,
+sube una imagen JPG, PNG o WebP desde la misma pagina. La imagen no identifica
+el titulo real del juego: el flujo infiere un perfil aproximado (plataforma,
+genero, editorial y ano), lo envia a la API de regresion y muestra la venta
+estimada en millones. El perfil se puede corregir y recalcular.
+
+### 5. Crear un administrador (opcional)
 
 ```powershell
 docker compose exec webapp flask create-admin
 ```
 
-La camara funciona en `localhost` o mediante HTTPS. Para probar sin camara,
-sube una imagen JPG, PNG o WebP desde la misma pagina.
+### 6. Logs, parada y reconstruccion
+
+Ver logs en vivo:
+
+```powershell
+docker compose logs -f webapp vision
+```
+
+Detener sin borrar datos:
+
+```powershell
+docker compose down
+```
+
+Volver a levantar:
+
+```powershell
+docker compose up -d
+```
+
+Despues de cambiar codigo o dependencias:
+
+```powershell
+docker compose up -d --build webapp
+```
+
+Para detener y borrar tambien la base de datos persistida en el volumen:
+
+```powershell
+docker compose down -v
+```
+
+Esto ultimo elimina usuarios, historiales y predicciones. Usalo solo si quieres
+empezar desde cero.
+
+### 7. Problemas comunes
+
+- **El puerto 5432 esta ocupado por un PostgreSQL local.** Cambia en `.env`
+  `POSTGRES_PORT=5433` y ejecuta `docker compose up -d postgres`. La webapp no
+  se ve afectada porque dentro de Docker usa `postgres:5432`. Si usas pgAdmin
+  o un cliente local, conectate a `localhost:5433`.
+- **El puerto 5000, 8000 u 8100 esta ocupado.** Cambia `WEBAPP_PORT`, `API_PORT`
+  o `VISION_PORT` en `.env` y ejecuta `docker compose up -d`.
+- **`webapp` no arranca o aparece unhealthy.** Revisa
+  `docker compose logs webapp`; normalmente indica que falta `.env`, que
+  PostgreSQL no esta listo o que una migracion fallo.
+- **La Vision API no responde.** Revisa `docker compose logs vision` y confirma
+  que `vision` este `healthy` en `docker compose ps`.
+- **Quiero verificar las migraciones aplicadas.**
+
+  ```powershell
+  docker compose exec webapp flask db current
+  ```
 
 ## Entrenamiento del modelo de vision
 
@@ -108,7 +254,7 @@ necesita entrenar. Para reproducir el entrenamiento:
 cd vision_api
 python -m venv .venv
 .\.venv\Scripts\activate
-pip install -r requirements-train.txt
+python -m pip install -r requirements-train.txt
 python train.py
 ```
 
@@ -144,7 +290,7 @@ la cabeza clasificadora y regenera:
 
    ```powershell
    cd video_games_web
-   pip install -r requirements-dev.txt
+   python -m pip install -r requirements-dev.txt
    Copy-Item .env.example .env
    python -m flask --app wsgi db upgrade
    python wsgi.py
@@ -185,12 +331,13 @@ PRO_avan/
     Dockerfile
   video_games_web/                 Webapp Flask + Docker Compose
     app/
-      blueprints/vision/           Rutas de camara, prediccion e historial
-      models/vision_prediction.py  Tabla vision_predictions
+      blueprints/vision/           Clasificacion, venta inferida, recalculo e historial
+      models/vision_prediction.py  Tabla vision_predictions enlazada a predictions
+      services/game_profile.py     Perfil de videojuego inferido desde CIFAR-10
       services/vision_client.py    Cliente httpx hacia la Vision API
-      templates/vision/            UI de captura, resultado e historial
+      templates/vision/            UI de captura, resultado de ventas e historial
       static/js/vision.js          Camara, canvas, fetch y CSRF
-    migrations/                    Migracion de vision_predictions
+    migrations/                    Migraciones de vision y enlace con ventas
     tests/
     docker-compose.yml
   README.md
@@ -200,6 +347,9 @@ PRO_avan/
 
 - El modulo de vision es una demostracion academica: CIFAR-10 contiene imagenes
   de 32 x 32 y las fotos reales pueden tener otra distribucion.
+- La imagen no identifica el titulo ni la editorial real. El sistema infiere un
+  perfil aproximado a partir del tema visual; el usuario puede corregirlo antes
+  de recalcular la venta.
 - Las predicciones de ventas tambien son aproximadas; el modelo explica solo
   una parte de la variabilidad.
 - No se versionan `.env`, bases SQLite locales, logs ni el dataset descargado.
