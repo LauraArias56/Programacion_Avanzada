@@ -1,0 +1,72 @@
+variable,VIF
+year,7.514485161855899
+platform_DS,2.1908954966555347
+platform_PS3,2.129101288407873
+platform_PS,2.083207990771896
+platform_2600,2.010034768363637
+platform_X360,1.958964669095062
+platform_Wii,1.8185467799700028
+platform_PSP,1.7117777590915224
+platform_3DS,1.699041893634956
+genre_Sports,1.692607981631802
+platform_PC,1.6829466785712521
+platform_PSV,1.6338874607383005
+platform_PS4,1.606589923607645
+platform_SNES,1.5263530213628678
+platform_NES,1.511815046983189
+genre_Role-Playing,1.4816684248103573
+genre_Misc,1.4785797990513607
+platform_GBA,1.4245442903131704
+genre_Adventure,1.4111609327600174
+genre_Racing,1.407091031087003
+platform_XB,1.3850037512376634
+platform_XOne,1.3796443265887697
+publisher_Electronic Arts,1.367764784098498
+genre_Shooter,1.3566652364054974
+platform_SAT,1.3335028566258982
+platform_N64,1.318046187366867
+genre_Simulation,1.3080225589660368
+publisher_Nintendo,1.2987154165584915
+genre_Platform,1.2847986297890783
+genre_Fighting,1.282570388929359
+platform_GC,1.2693880405192859
+publisher_Sega,1.2517463528823964
+genre_Strategy,1.2468841848141379
+platform_WiiU,1.2440591044750455
+genre_Puzzle,1.228298877542066
+publisher_Activision,1.218166105941339
+publisher_Sony Computer Entertainment,1.2050396724715782
+publisher_Namco Bandai Games,1.2029222610944377
+publisher_Ubisoft,1.1891586653224355
+publisher_Konami Digital Entertainment,1.1836371133995858
+platform_GB,1.1815499927168034
+publisher_THQ,1.1728506133767622
+publisher_Atari,1.1448413021144095
+publisher_Take-Two Interactive,1.119712573838261
+publisher_Microsoft Game Studios,1.1124063423546768
+publisher_Idea Factory,1.1035712624661118
+publisher_Capcom,1.1013522409700334
+publisher_Tecmo Koei,1.0978572119768677
+publisher_Square Enix,1.0902881712584378
+publisher_Warner Bros. Interactive Entertainment,1.089762816334937
+platform_GEN,1.0842992523478585
+publisher_Acclaim Entertainment,1.0810897077596466
+publisher_Codemasters,1.0798840048994398
+publisher_Nippon Ichi Software,1.0753153069461132
+platform_DC,1.0660053019793128
+publisher_Eidos Interactive,1.0645601913137248
+publisher_Midway Games,1.0631861286237991
+publisher_Disney Interactive Studios,1.0620798352475358
+publisher_Vivendi Games,1.0617450704663343
+publisher_Unknown,1.0607231781467048
+publisher_505 Games,1.0529448013059939
+publisher_D3Publisher,1.0436539145568324
+publisher_Zoo Digital Publishing,1.0402630460252613
+publisher_Deep Silver,1.0388568583161193
+platform_NG,1.0365478671717596
+publisher_LucasArts,1.0309314773749774
+platform_SCD,1.0231302008396834
+platform_WS,1.0095037770888249
+platform_GG,1.0065602564052654
+platform_TG16,1.0055597694101674
+platform_PCFX,1.0028350349898614

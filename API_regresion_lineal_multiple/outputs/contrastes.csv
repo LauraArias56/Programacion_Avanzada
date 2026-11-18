@@ -1,0 +1,4 @@
+supuesto,estadistico,p_valor,veredicto
+Homocedasticidad (Breusch-Pagan),1298.4503169560899,7.174020950610502e-225,Se incumple
+Normalidad de residuos (Jarque-Bera),54981.62541247787,0.0,Se incumple
+Autocorrelacion (Durbin-Watson),2.00296429702319,,OK

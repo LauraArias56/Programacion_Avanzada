@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+
+# Datos descargados
+vision_api/data/
+*.tar.gz
+*.zip
+
+# Bases de datos y logs locales
+*.db
+*.sqlite
+*.sqlite3
+video_games_web/instance/
+logs/*.log
+logs/*.log.*
+video_games_web/logs/*.log
+video_games_web/logs/*.log.*
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# El checkpoint si se versiona: vision_api/artifacts/model.pt

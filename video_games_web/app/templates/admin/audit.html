@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Auditoria · Video Games Sales{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div>
+    <h1 class="h4 mb-0">Auditoria</h1>
+    <p class="text-muted small mb-0">{{ pagination.total }} eventos registrados.</p>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small mb-1" for="action">Accion</label>
+        <select class="form-select form-select-sm" id="action" name="action">
+          <option value="">Todas</option>
+          {% for value in actions %}
+            <option value="{{ value }}" {% if filters.action == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1" for="user">Usuario</label>
+        <input class="form-control form-control-sm" id="user" name="user"
+               value="{{ filters.user }}" placeholder="email o nombre">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1" for="from">Desde</label>
+        <input class="form-control form-control-sm" type="date" id="from" name="from" value="{{ filters.from }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1" for="to">Hasta</label>
+        <input class="form-control form-control-sm" type="date" id="to" name="to" value="{{ filters.to }}">
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary" type="submit">Filtrar</button>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.audit') }}">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Fecha</th>
+          <th>Usuario</th>
+          <th>Accion</th>
+          <th>Estado</th>
+          <th>IP</th>
+          <th>Request ID</th>
+          <th>Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+          <tr>
+            <td class="small text-muted text-nowrap">{{ entry.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+            <td class="small">
+              {% if entry.user %}
+                {{ entry.user.email }}
+              {% elif entry.meta and entry.meta.get("email") %}
+                {{ entry.meta.get("email") }}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td><code class="small">{{ entry.action }}</code></td>
+            <td>
+              {% if entry.status == "success" %}
+                <span class="badge text-bg-success">ok</span>
+              {% else %}
+                <span class="badge text-bg-danger">{{ entry.status }}</span>
+              {% endif %}
+            </td>
+            <td class="small">{{ entry.ip or "-" }}</td>
+            <td class="small"><code>{{ entry.request_id or "-" }}</code></td>
+            <td class="small">
+              {% if entry.error %}
+                <span class="text-danger">{{ entry.error }}</span>
+              {% elif entry.meta %}
+                <code class="text-muted">{{ entry.meta|tojson }}</code>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No hay eventos para estos filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagination.pages > 1 %}
+  <nav class="mt-3" aria-label="Paginacion">
+    <ul class="pagination pagination-sm justify-content-center">
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('admin.audit', page=pagination.prev_num, action=filters.action or None, user=filters.user or None, **{'from': filters.from or None, 'to': filters.to or None}) }}">Anterior</a>
+      </li>
+      {% for page in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page %}
+          <li class="page-item {% if page == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('admin.audit', page=page, action=filters.action or None, user=filters.user or None, **{'from': filters.from or None, 'to': filters.to or None}) }}">{{ page }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('admin.audit', page=pagination.next_num, action=filters.action or None, user=filters.user or None, **{'from': filters.from or None, 'to': filters.to or None}) }}">Siguiente</a>
+      </li>
+    </ul>
+  </nav>
+{% endif %}
+{% endblock %}

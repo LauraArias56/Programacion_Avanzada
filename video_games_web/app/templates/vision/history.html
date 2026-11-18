@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de vision · Video Games Sales{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div>
+    <h1 class="h4 mb-0">Historial de vision</h1>
+    <p class="text-muted mb-0 small">{{ pagination.total }} clasificaciones guardadas.</p>
+  </div>
+  <a class="btn btn-primary btn-sm" href="{{ url_for('vision.index') }}">Nueva clasificacion</a>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small mb-1" for="label">Clase</label>
+        <select class="form-select form-select-sm" id="label" name="label">
+          <option value="">Todas</option>
+          {% for value in labels %}
+            <option value="{{ value }}" {% if filters.label == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4 d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary" type="submit">Filtrar</button>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('vision.history') }}">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Fecha</th>
+          <th>Clase</th>
+          <th class="text-end">Confianza</th>
+          <th>Alternativas</th>
+          <th>Origen</th>
+          <th>Modelo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for prediction in predictions %}
+          <tr>
+            <td class="small text-muted">{{ prediction.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>
+              <span class="text-capitalize fw-semibold">{{ prediction.label_es }}</span>
+              <div class="small text-muted">{{ prediction.label }}</div>
+            </td>
+            <td class="text-end">{{ "%.1f"|format(prediction.confidence|float * 100) }} %</td>
+            <td class="small text-muted">
+              {% for item in prediction.top_k[1:3] %}
+                <span class="text-capitalize">{{ item.label_es }}</span>
+                ({{ "%.1f"|format(item.confidence|float * 100) }} %){% if not loop.last %}, {% endif %}
+              {% else %}
+                -
+              {% endfor %}
+            </td>
+            <td class="small">{{ "Camara" if prediction.source == "camera" else "Archivo" }}</td>
+            <td class="small text-muted">{{ prediction.model_version }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              No hay clasificaciones para estos filtros.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagination.pages > 1 %}
+  <nav class="mt-3" aria-label="Paginacion">
+    <ul class="pagination pagination-sm justify-content-center">
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('vision.history', page=pagination.prev_num, label=filters.label or None) }}">Anterior</a>
+      </li>
+      {% for page in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page %}
+          <li class="page-item {% if page == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('vision.history', page=page, label=filters.label or None) }}">{{ page }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('vision.history', page=pagination.next_num, label=filters.label or None) }}">Siguiente</a>
+      </li>
+    </ul>
+  </nav>
+{% endif %}
+{% endblock %}

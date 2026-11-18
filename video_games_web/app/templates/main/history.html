@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Historial · Video Games Sales{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div>
+    <h1 class="h4 mb-0">Historial de predicciones</h1>
+    <p class="text-muted mb-0 small">{{ pagination.total }} predicciones guardadas.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.export_history') }}">Exportar CSV</a>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('main.predict') }}">Nueva prediccion</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small mb-1" for="platform">Plataforma</label>
+        <select class="form-select form-select-sm" id="platform" name="platform">
+          <option value="">Todas</option>
+          {% for value in info.get("allowed_platforms", []) %}
+            <option value="{{ value }}" {% if filters.platform == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1" for="genre">Genero</label>
+        <select class="form-select form-select-sm" id="genre" name="genre">
+          <option value="">Todos</option>
+          {% for value in info.get("allowed_genres", []) %}
+            <option value="{{ value }}" {% if filters.genre == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1" for="year">Ano</label>
+        <input class="form-control form-control-sm" type="number" id="year" name="year"
+               min="1970" max="2030" value="{{ filters.year or '' }}">
+      </div>
+      <div class="col-md-4 d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary" type="submit">Filtrar</button>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.history') }}">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Fecha</th>
+          <th>Plataforma</th>
+          <th>Genero</th>
+          <th>Editorial</th>
+          <th class="text-end">Ano</th>
+          <th class="text-end">Ventas (M)</th>
+          <th class="text-end">IC95 (M)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for prediction in predictions %}
+          <tr>
+            <td class="small text-muted">{{ prediction.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>{{ prediction.platform }}</td>
+            <td>{{ prediction.genre }}</td>
+            <td>{{ prediction.publisher }}</td>
+            <td class="text-end">{{ prediction.year }}</td>
+            <td class="text-end fw-semibold">{{ "%.3f"|format(prediction.predicted_sales_millions) }}</td>
+            <td class="text-end small text-muted">
+              {{ "%.3f"|format(prediction.interval_low or 0) }} -
+              {{ "%.3f"|format(prediction.interval_high or 0) }}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary"
+                 href="{{ url_for('main.prediction_detail', prediction_id=prediction.id) }}">Detalle</a>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No hay predicciones para estos filtros.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if pagination.pages > 1 %}
+  <nav class="mt-3" aria-label="Paginacion">
+    <ul class="pagination pagination-sm justify-content-center">
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('main.history', page=pagination.prev_num, platform=filters.platform or None, genre=filters.genre or None, year=filters.year or None) }}">Anterior</a>
+      </li>
+      {% for page in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page %}
+          <li class="page-item {% if page == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('main.history', page=page, platform=filters.platform or None, genre=filters.genre or None, year=filters.year or None) }}">{{ page }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('main.history', page=pagination.next_num, platform=filters.platform or None, genre=filters.genre or None, year=filters.year or None) }}">Siguiente</a>
+      </li>
+    </ul>
+  </nav>
+{% endif %}
+{% endblock %}

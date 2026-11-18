@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_field %}
+
+{% block title %}Predecir · Video Games Sales{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-1">Predecir ventas globales</h1>
+        <p class="text-muted mb-4">
+          Completa los datos del videojuego. El resultado se guarda en tu historial.
+        </p>
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="row">
+            <div class="col-md-6">{{ render_field(form.platform, "form-select") }}</div>
+            <div class="col-md-6">{{ render_field(form.genre, "form-select") }}</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">{{ render_field(form.publisher, "form-control") }}</div>
+            <div class="col-md-6">{{ render_field(form.year, "form-control") }}</div>
+          </div>
+          <div class="d-flex gap-2">
+            {{ form.submit(class="btn btn-primary") }}
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.index') }}">Cancelar</a>
+          </div>
+        </form>
+      </div>
+      {% if info %}
+        <div class="card-footer small text-muted">
+          Modelo {{ info.get("model_version", "-") }} ·
+          rango de anos {{ info.get("year_range", ["-", "-"])[0] }} - {{ info.get("year_range", ["-", "-"])[1] }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5 mt-4 mt-lg-0">
+    <div class="card shadow-sm border-0 bg-white">
+      <div class="card-body">
+        <h2 class="h6 text-uppercase text-muted">Como funciona</h2>
+        <ul class="small mb-0">
+          <li>Las plataformas y generos se validan contra el catalogo del modelo.</li>
+          <li>Una editorial desconocida se agrupa como <code>Other</code> y se avisa en el resultado.</li>
+          <li>Un ano fuera del rango de entrenamiento genera una advertencia de extrapolacion.</li>
+          <li>El intervalo del 95 % es aproximado y refleja la incertidumbre del modelo.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

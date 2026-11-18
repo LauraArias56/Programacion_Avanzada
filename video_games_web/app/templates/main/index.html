@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio · Video Games Sales{% endblock %}
+
+{% block content %}
+<div class="p-4 p-md-5 mb-4 bg-white rounded-3 shadow-sm border">
+  <div class="row align-items-center">
+    <div class="col-lg-8">
+      <h1 class="display-6 fw-semibold">Prediccion de ventas globales de videojuegos</h1>
+      <p class="lead mb-3">
+        Estima las ventas en millones a partir de la plataforma, el genero,
+        la editorial y el ano de lanzamiento con un modelo de regresion lineal multiple.
+      </p>
+      {% if current_user.is_authenticated %}
+        <a class="btn btn-primary btn-lg" href="{{ url_for('main.predict') }}">Hacer una prediccion</a>
+        <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('main.history') }}">Ver historial</a>
+      {% else %}
+        <a class="btn btn-primary btn-lg" href="{{ url_for('auth.register') }}">Crear cuenta</a>
+        <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('auth.login') }}">Entrar</a>
+      {% endif %}
+    </div>
+    <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+      {% if health %}
+        <span class="badge text-bg-success fs-6">API conectada</span>
+        <div class="small text-muted mt-2">Modelo {{ health.get("model_version", "-") }}</div>
+      {% else %}
+        <span class="badge text-bg-warning fs-6">API no disponible</span>
+        <div class="small text-muted mt-2">Las predicciones no estan operativas.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">Rendimiento del modelo</div>
+      <div class="card-body">
+        {% if info and info.get("metrics") %}
+          {% set test = info.metrics.get("test", {}) %}
+          {% set train = info.metrics.get("train", {}) %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr><th>Metrica</th><th class="text-end">Train</th><th class="text-end">Test</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>R2 (log)</td>
+                  <td class="text-end">{{ "%.3f"|format(train.get("R2", 0)) }}</td>
+                  <td class="text-end">{{ "%.3f"|format(test.get("R2", 0)) }}</td>
+                </tr>
+                <tr>
+                  <td>RMSE (log)</td>
+                  <td class="text-end">{{ "%.3f"|format(train.get("RMSE_log", 0)) }}</td>
+                  <td class="text-end">{{ "%.3f"|format(test.get("RMSE_log", 0)) }}</td>
+                </tr>
+                <tr>
+                  <td>MAE (log)</td>
+                  <td class="text-end">{{ "%.3f"|format(train.get("MAE_log", 0)) }}</td>
+                  <td class="text-end">{{ "%.3f"|format(test.get("MAE_log", 0)) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small text-muted mt-3 mb-0">
+            R2 test aproximado de {{ "%.2f"|format(test.get("R2", 0)) }} en escala log:
+            el modelo explica solo una parte de la variabilidad. No sustituye un estudio de mercado.
+          </p>
+        {% else %}
+          <p class="text-muted mb-0">No se pudieron obtener las metricas de la API.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">Tus ultimas predicciones</div>
+      <div class="card-body">
+        {% if current_user.is_authenticated and recent %}
+          <ul class="list-group list-group-flush">
+            {% for prediction in recent %}
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-semibold">{{ prediction.platform }} · {{ prediction.genre }}</div>
+                  <div class="small text-muted">{{ prediction.year }} · {{ prediction.publisher }}</div>
+                </div>
+                <div class="text-end">
+                  <div class="fw-semibold">{{ "%.3f"|format(prediction.predicted_sales_millions) }}</div>
+                  <div class="small text-muted">millones</div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+          <a class="btn btn-sm btn-outline-primary mt-3" href="{{ url_for('main.history') }}">Ver todo</a>
+        {% elif current_user.is_authenticated %}
+          <p class="text-muted mb-0">Todavia no has hecho predicciones.</p>
+        {% else %}
+          <p class="text-muted mb-0">Inicia sesion para guardar y consultar tus predicciones.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if info %}
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-white fw-semibold">Informacion del modelo</div>
+  <div class="card-body">
+    <div class="row g-3 small">
+      <div class="col-md-4"><span class="text-muted">Version:</span> {{ info.get("model_version", "-") }}</div>
+      <div class="col-md-4"><span class="text-muted">Variable objetivo:</span> {{ info.get("target", "-") }}</div>
+      <div class="col-md-4"><span class="text-muted">Transformacion:</span> {{ info.get("target_transform", "-") }}</div>
+      <div class="col-md-4"><span class="text-muted">Observaciones de entrenamiento:</span> {{ info.get("n_train", "-") }}</div>
+      <div class="col-md-4"><span class="text-muted">Predictoras:</span> {{ info.get("n_features", "-") }}</div>
+      <div class="col-md-4"><span class="text-muted">Rango de anos:</span>
+        {{ info.get("year_range", ["-", "-"])[0] }} - {{ info.get("year_range", ["-", "-"])[1] }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

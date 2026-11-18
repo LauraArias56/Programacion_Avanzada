@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Prediccion #{{ prediction.id }} · Video Games Sales{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h4 mb-0">Prediccion #{{ prediction.id }}</h1>
+    <p class="text-muted small mb-0">
+      {{ prediction.created_at.strftime("%Y-%m-%d %H:%M UTC") }} ·
+      modelo {{ prediction.model_version }}
+    </p>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.history') }}">Volver al historial</a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Datos de entrada</div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Plataforma</dt><dd class="col-sm-8">{{ prediction.platform }}</dd>
+          <dt class="col-sm-4">Genero</dt><dd class="col-sm-8">{{ prediction.genre }}</dd>
+          <dt class="col-sm-4">Editorial</dt><dd class="col-sm-8">{{ prediction.publisher }}</dd>
+          <dt class="col-sm-4">Ano</dt><dd class="col-sm-8">{{ prediction.year }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {% if prediction.warnings %}
+      <div class="card shadow-sm mt-4 border-warning">
+        <div class="card-header bg-warning-subtle fw-semibold">Advertencias del modelo</div>
+        <ul class="list-group list-group-flush">
+          {% for warning in prediction.warnings %}
+            <li class="list-group-item small">{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm text-center border-primary">
+      <div class="card-body py-4">
+        <div class="text-uppercase text-muted small mb-1">Ventas estimadas</div>
+        <div class="display-5 fw-bold text-primary">
+          {{ "%.3f"|format(prediction.predicted_sales_millions) }}
+        </div>
+        <div class="text-muted mb-3">millones de unidades</div>
+        <div class="small text-muted">
+          Intervalo 95 %:
+          {{ "%.3f"|format(prediction.interval_low or 0) }} -
+          {{ "%.3f"|format(prediction.interval_high or 0) }} millones
+        </div>
+        <hr>
+        <div class="small text-muted">
+          Escala log1p: {{ "%.4f"|format(prediction.predicted_log_sales) }}
+        </div>
+      </div>
+    </div>
+    <div class="alert alert-light border small mt-3 mb-0">
+      Esta prediccion es aproximada. El modelo explica una parte limitada de la
+      variabilidad de las ventas; no sustituye un estudio de mercado.
+    </div>
+  </div>
+</div>
+{% endblock %}

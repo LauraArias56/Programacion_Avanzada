@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_field %}
+
+{% block title %}Entrar · Video Games Sales{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h1 class="h4 mb-3">Iniciar sesion</h1>
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+          {{ render_field(form.email, "form-control") }}
+          {{ render_field(form.password, "form-control") }}
+          <div class="form-check mb-3">
+            {{ form.remember(class="form-check-input") }}
+            {{ form.remember.label(class="form-check-label") }}
+          </div>
+          {{ form.submit(class="btn btn-primary w-100") }}
+        </form>
+      </div>
+      <div class="card-footer text-center small">
+        No tienes cuenta? <a href="{{ url_for('auth.register') }}">Registrate</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
