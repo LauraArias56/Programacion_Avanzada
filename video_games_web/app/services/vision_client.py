@@ -28,6 +28,8 @@ class VisionApiClient:
         self._lock = Lock()
         self._model_info: dict | None = None
         self._model_info_at = 0.0
+        self._game_model_info: dict | None = None
+        self._game_model_info_at = 0.0
 
     @staticmethod
     def _detail(response: httpx.Response) -> str:
@@ -145,6 +147,37 @@ class VisionApiClient:
             self._model_info_at = time.monotonic()
         return info
 
+    def game_model_info(self, force: bool = False) -> dict | None:
+        with self._lock:
+            cached = self._game_model_info
+            cached_at = self._game_model_info_at
+        if (
+            not force
+            and cached is not None
+            and (time.monotonic() - cached_at) < self.model_info_ttl
+        ):
+            return cached
+
+        try:
+            info = self._request("GET", "/model/genres")
+        except ApiValidationError as exc:
+            if exc.status_code == 404:
+                logger.warning("vision_game_model_endpoint_missing")
+                return None
+            raise
+        except ApiUnavailable:
+            if cached is not None:
+                logger.warning(
+                    "vision_game_model_info_stale", extra={"path": "/model/genres"}
+                )
+                return cached
+            raise
+
+        with self._lock:
+            self._game_model_info = info
+            self._game_model_info_at = time.monotonic()
+        return info
+
     def predict_image(
         self,
         image_bytes: bytes,
@@ -155,6 +188,20 @@ class VisionApiClient:
         return self._request(
             "POST",
             "/predict",
+            params={"top_k": top_k},
+            files={"file": (filename, image_bytes, content_type)},
+        )
+
+    def predict_game_genre(
+        self,
+        image_bytes: bytes,
+        filename: str,
+        content_type: str,
+        top_k: int = 3,
+    ) -> dict:
+        return self._request(
+            "POST",
+            "/predict/genre",
             params={"top_k": top_k},
             files={"file": (filename, image_bytes, content_type)},
         )

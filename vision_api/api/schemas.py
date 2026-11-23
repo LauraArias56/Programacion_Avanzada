@@ -16,6 +16,7 @@ class Prediction(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     top_k: list[TopKPrediction]
     latency_ms: float = Field(..., ge=0)
+    kind: str = "cifar10"
 
 
 class PredictionResponse(BaseModel):
@@ -34,8 +35,11 @@ class ModelInfo(BaseModel):
     metrics: dict
     preprocessing: dict
     disclaimer: str
+    genre_profiles: dict = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):
     status: str
     model_version: str
+    game_genre_available: bool = False
+    game_genre_model_version: str | None = None
