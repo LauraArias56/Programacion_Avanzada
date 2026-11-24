@@ -73,5 +73,24 @@ services:
       vision:
         condition: service_healthy
 
+  backup:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-vguser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vgpass}
+      POSTGRES_DB: ${POSTGRES_DB:-video_games}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+    volumes:
+      - ./scripts/backup_postgres.sh:/scripts/backup_postgres.sh:ro
+      - pgbackup:/backups
+    command: ["sh", "/scripts/backup_postgres.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  pgbackup:

@@ -31,7 +31,7 @@
       {% if info %}
         <div class="card-footer small text-muted">
           Modelo {{ info.get("model_version", "-") }} ·
-          rango de anos {{ info.get("year_range", ["-", "-"])[0] }} - {{ info.get("year_range", ["-", "-"])[1] }}
+          rango de años {{ info.get("year_range", ["-", "-"])[0] }} - {{ info.get("year_range", ["-", "-"])[1] }}
         </div>
       {% endif %}
     </div>
@@ -44,7 +44,7 @@
         <ul class="small mb-0">
           <li>Las plataformas y generos se validan contra el catalogo del modelo.</li>
           <li>Una editorial desconocida se agrupa como <code>Other</code> y se avisa en el resultado.</li>
-          <li>Un ano fuera del rango de entrenamiento genera una advertencia de extrapolacion.</li>
+          <li>Un año fuera del rango de entrenamiento genera una advertencia de extrapolacion.</li>
           <li>El intervalo del 95 % es aproximado y refleja la incertidumbre del modelo.</li>
         </ul>
       </div>

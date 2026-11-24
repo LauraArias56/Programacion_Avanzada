@@ -10,8 +10,10 @@ aplicacion web:
 
 La webapp Flask conserva el flujo original de ventas y agrega el modulo de
 vision como una funcionalidad aditiva, sin romper la API ni el frontend
-existentes. La imagen se traduce en un perfil aproximado del videojuego
-(plataforma, genero, editorial y ano) y ese perfil alimenta el modelo de ventas.
+existentes. CIFAR-10 no reconoce el titulo del juego: clasifica el **tema
+visual** (avion, coche, animal, barco, etc.). Ese tema se traduce a un perfil
+aproximado (plataforma, genero, editorial y ano) que el usuario puede corregir
+antes de estimar ventas.
 
 ## Arquitectura
 
@@ -40,23 +42,25 @@ Navegador (Bootstrap + JS)
 
 | Ruta | Tecnologia | Responsabilidad |
 |---|---|---|
+| `visualizacion/` | Front-End (rubrica) | Captura de camara/archivo y presentacion de resultados |
+| `modelo/` | Modelo de IA (rubrica) | Transfer learning CIFAR-10, librerias y checkpoint |
 | `API_regresion_lineal_multiple/` | FastAPI + joblib | API original de regresion de ventas (sin cambios) |
 | `vision_api/` | FastAPI + PyTorch | Entrenamiento e inferencia CIFAR-10 |
 | `video_games_web/` | Flask + SQLAlchemy + Bootstrap | Frontend, autenticacion, historiales, auditoria y Docker Compose |
-| `video_games_web/docker-compose.yml` | Docker Compose | PostgreSQL, API de ventas, Vision API y webapp |
+| `video_games_web/docker-compose.yml` | Docker Compose | PostgreSQL, API de ventas, Vision API, webapp y backup diario |
 
 ## Cobertura de la rubrica
 
 | Criterio | Implementacion |
 |---|---|
-| Dataset de vision | CIFAR-10 cargado con `torchvision`, 20 000 train / 4 000 test balanceados |
+| Dataset de vision | CIFAR-10 (`torchvision`), 20 000 train / 4 000 test; se usa como tema visual, no como identificador de titulos |
 | Modelo con transfer learning | MobileNetV3-Small preentrenado en ImageNet, backbone congelado y cabeza reentrenada |
 | Backend / API | Flask recibe la imagen; FastAPI `/predict` valida, clasifica y devuelve top-k, confianza, latencia y version |
 | Frontend con captura | Pagina `/vision` con `getUserMedia`, captura a canvas, subida JPG/PNG/WebP y visualizacion de resultados |
 | Integracion con ventas | La clase visual se traduce en un perfil de videojuego y se envia a la API de regresion para estimar ventas globales |
-| Persistencia | `vision_predictions` enlazada con `predictions` en PostgreSQL + auditoria de acciones |
-| Docker | Servicio `vision` en Docker Compose con healthcheck y modelo incluido |
-| Git y documentacion | Repositorio Git, README raiz, README de vision y README de la webapp |
+| Persistencia | Cada inferencia en PostgreSQL (`vision_predictions` + auditoria) y `pg_dump` diario en el servicio `backup` |
+| Docker | Compose: postgres, api, vision, webapp y backup; credenciales en `.env` |
+| Git y documentacion | Repositorio Git, carpetas `visualizacion/` y `modelo/`, README de instalacion |
 
 ## Resultados del modelo
 
@@ -75,11 +79,25 @@ Navegador (Bootstrap + JS)
 El checkpoint, las metricas completas y las figuras estan en
 `vision_api/artifacts/`.
 
+## Por que CIFAR-10
+
+La rubrica pide un dataset de vision coherente y formateo para un modelo
+preentrenado. CIFAR-10 cumple eso: 10 clases etiquetadas, descarga estandar
+con `torchvision` y tensores compatibles con ImageNet (RGB 160 x 160, media y
+desviacion de ImageNet, layout NCHW).
+
+No es un catalogo de videojuegos. El sistema **no** intenta leer el titulo de
+una portada. Clasifica el contenido visual de la foto (por ejemplo un coche o
+un barco) y usa esa clase como tema para proponer un perfil de juego. El
+usuario puede corregir plataforma, genero, editorial y ano antes de recalcular
+la venta. Eso mantiene el flujo academico de vision (captura -> inferencia ->
+historial) sin fingir un reconocedor de titulos.
+
 ## Como ejecutar con Docker
 
-Docker Compose levanta PostgreSQL, la API de ventas, la Vision API y la webapp
-Flask con un solo comando. El checkpoint del modelo de vision ya esta incluido,
-por lo que no hace falta entrenar nada.
+Docker Compose levanta PostgreSQL, la API de ventas, la Vision API, la webapp
+Flask y un servicio de **backup diario** (`pg_dump` cada 24 h). El checkpoint
+del modelo de vision ya esta incluido, por lo que no hace falta entrenar nada.
 
 ### Requisitos
 
@@ -144,8 +162,10 @@ migraciones automaticamente (`flask db upgrade`) antes de arrancar Gunicorn.
 docker compose ps
 ```
 
-Deben aparecer `postgres`, `api`, `vision` y `webapp`. `postgres`, `api` y
-`vision` deben estar `healthy`. Tambien puedes probar las APIs:
+Deben aparecer `postgres`, `api`, `vision`, `webapp` y `backup`. `postgres`,
+`api` y `vision` deben estar `healthy`. El servicio `backup` escribe un dump
+al arrancar y luego uno cada 24 h en el volumen `pgbackup`. Tambien puedes
+probar las APIs:
 
 PowerShell:
 
@@ -196,7 +216,7 @@ docker compose exec webapp flask create-admin
 Ver logs en vivo:
 
 ```powershell
-docker compose logs -f webapp vision
+docker compose logs -f webapp vision backup
 ```
 
 Detener sin borrar datos:
@@ -321,6 +341,8 @@ python -m pytest -q
 
 ```
 PRO_avan/
+  visualizacion/                   Front-End de la rubrica (captura y resultados)
+  modelo/                          Modelo de IA de la rubrica (transfer learning)
   API_regresion_lineal_multiple/   API FastAPI original de ventas
   vision_api/                      Entrenamiento + API de vision
     api/                           Endpoints FastAPI
@@ -337,6 +359,7 @@ PRO_avan/
       services/vision_client.py    Cliente httpx hacia la Vision API
       templates/vision/            UI de captura, resultado de ventas e historial
       static/js/vision.js          Camara, canvas, fetch y CSRF
+    scripts/backup_postgres.sh     Dump diario de PostgreSQL
     migrations/                    Migraciones de vision y enlace con ventas
     tests/
     docker-compose.yml
@@ -347,9 +370,10 @@ PRO_avan/
 
 - El modulo de vision es una demostracion academica: CIFAR-10 contiene imagenes
   de 32 x 32 y las fotos reales pueden tener otra distribucion.
-- La imagen no identifica el titulo ni la editorial real. El sistema infiere un
-  perfil aproximado a partir del tema visual; el usuario puede corregirlo antes
-  de recalcular la venta.
+- CIFAR-10 se eligio por ser un dataset de vision estandar para transfer
+  learning, no un catalogo de juegos. La imagen no identifica el titulo ni la
+  editorial real; el sistema infiere un perfil aproximado a partir del tema
+  visual y el usuario puede corregirlo antes de recalcular la venta.
 - Las predicciones de ventas tambien son aproximadas; el modelo explica solo
   una parte de la variabilidad.
 - No se versionan `.env`, bases SQLite locales, logs ni el dataset descargado.

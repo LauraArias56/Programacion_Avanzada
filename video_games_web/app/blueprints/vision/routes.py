@@ -392,7 +392,7 @@ def recalculate(prediction_id: int):
     if not publisher or len(publisher) > 120:
         errors.append("La editorial debe tener entre 1 y 120 caracteres.")
     if year is None or not 1970 <= year <= 2030:
-        errors.append("El ano debe estar entre 1970 y 2030.")
+        errors.append("El año debe estar entre 1970 y 2030.")
 
     if errors:
         flash(" ".join(errors), "danger")

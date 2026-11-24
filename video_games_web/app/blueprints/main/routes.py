@@ -242,7 +242,7 @@ def export_history():
             "plataforma",
             "genero",
             "editorial",
-            "ano",
+            "año",
             "ventas_millones",
             "log_ventas",
             "ic95_inferior",

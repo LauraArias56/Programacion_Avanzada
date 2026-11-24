@@ -9,7 +9,7 @@
       <h1 class="display-6 fw-semibold">Prediccion de ventas globales de videojuegos</h1>
       <p class="lead mb-3">
         Estima las ventas en millones a partir de la plataforma, el genero,
-        la editorial y el ano de lanzamiento con un modelo de regresion lineal multiple.
+        la editorial y el año de lanzamiento con un modelo de regresion lineal multiple.
       </p>
       {% if current_user.is_authenticated %}
         <a class="btn btn-primary btn-lg" href="{{ url_for('main.predict') }}">Hacer una prediccion</a>
@@ -115,7 +115,7 @@
       <div class="col-md-4"><span class="text-muted">Transformacion:</span> {{ info.get("target_transform", "-") }}</div>
       <div class="col-md-4"><span class="text-muted">Observaciones de entrenamiento:</span> {{ info.get("n_train", "-") }}</div>
       <div class="col-md-4"><span class="text-muted">Predictoras:</span> {{ info.get("n_features", "-") }}</div>
-      <div class="col-md-4"><span class="text-muted">Rango de anos:</span>
+      <div class="col-md-4"><span class="text-muted">Rango de años:</span>
         {{ info.get("year_range", ["-", "-"])[0] }} - {{ info.get("year_range", ["-", "-"])[1] }}
       </div>
     </div>

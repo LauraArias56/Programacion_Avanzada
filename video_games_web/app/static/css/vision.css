@@ -2,9 +2,10 @@
   position: relative;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  border: 1px dashed #b6c2cf;
-  border-radius: 0.75rem;
-  background: #0f172a;
+  border: 2px solid rgba(34, 211, 238, 0.7);
+  border-radius: 1.4rem;
+  background: #090612;
+  box-shadow: inset 0 0 30px rgba(255, 43, 214, 0.2);
 }
 
 .vision-media {
@@ -22,8 +23,8 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  color: #475569;
-  background: #f8fafc;
+  color: #ddd6fe;
+  background: #12081f;
 }
 
 .vision-placeholder-icon {
@@ -33,10 +34,10 @@
   width: 3rem;
   height: 3rem;
   margin-bottom: 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 2px solid #22d3ee;
   border-radius: 50%;
   font-weight: 700;
-  color: #64748b;
+  color: #bef264;
 }
 
 .vision-confidence {
@@ -44,5 +45,5 @@
 }
 
 .vision-confidence .progress-bar {
-  background-color: #1f3a5f;
+  background: linear-gradient(90deg, #ff2bd6, #22d3ee);
 }

@@ -76,7 +76,7 @@ def login():
         )
         db.session.commit()
         logger.warning("login_failed", extra={"error": "Credenciales invalidas"})
-        flash("Email o contrasena incorrectos.", "danger")
+        flash("Email o contraseña incorrectos.", "danger")
 
     return render_template("auth/login.html", form=form)
 

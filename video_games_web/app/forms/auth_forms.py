@@ -4,6 +4,8 @@ from flask_wtf import FlaskForm
 from wtforms import BooleanField, PasswordField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 
+MENSAJE_CONTRASENA = "La contraseña debe tener 8 caracteres como mínimo."
+
 
 class RegisterForm(FlaskForm):
     username = StringField(
@@ -13,13 +15,19 @@ class RegisterForm(FlaskForm):
         "Email", validators=[DataRequired(), Email(), Length(max=255)]
     )
     password = PasswordField(
-        "Contrasena", validators=[DataRequired(), Length(min=8, max=128)]
+        "Contraseña",
+        validators=[
+            DataRequired(message="La contraseña es obligatoria."),
+            Length(min=8, max=128, message=MENSAJE_CONTRASENA),
+        ],
+        description="Mínimo 8 caracteres.",
     )
     confirm = PasswordField(
-        "Repetir contrasena",
+        "Repetir contraseña",
         validators=[
-            DataRequired(),
-            EqualTo("password", message="Las contrasenas no coinciden."),
+            DataRequired(message="Debes repetir la contraseña."),
+            Length(min=8, max=128, message=MENSAJE_CONTRASENA),
+            EqualTo("password", message="Las contraseñas no coinciden."),
         ],
     )
     submit = SubmitField("Crear cuenta")
@@ -30,7 +38,11 @@ class LoginForm(FlaskForm):
         "Email", validators=[DataRequired(), Email(), Length(max=255)]
     )
     password = PasswordField(
-        "Contrasena", validators=[DataRequired(), Length(max=128)]
+        "Contraseña",
+        validators=[
+            DataRequired(message="La contraseña es obligatoria."),
+            Length(min=8, max=128, message=MENSAJE_CONTRASENA),
+        ],
     )
     remember = BooleanField("Recordarme")
     submit = SubmitField("Entrar")

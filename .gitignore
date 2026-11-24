@@ -30,6 +30,7 @@ logs/*.log
 logs/*.log.*
 video_games_web/logs/*.log
 video_games_web/logs/*.log.*
+video_games_web/backups/*.dump
 
 # Sistema y editores
 .DS_Store

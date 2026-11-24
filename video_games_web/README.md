@@ -24,6 +24,7 @@ Flask (webapp :5000)  --httpx-->  FastAPI regresion (api :8000)  -->  modelo job
    |
    +--> PostgreSQL (:5432): usuarios, historial, auditoria,
                             vision_predictions enlazada a predictions
+   +--> backup diario (pg_dump cada 24 h -> volumen pgbackup)
    +--> logs/app.log, logs/error.log y stdout
 ```
 
@@ -44,6 +45,7 @@ Flask (webapp :5000)  --httpx-->  FastAPI regresion (api :8000)  -->  modelo job
 - Visor de auditoria para administradores.
 - Logs JSON con `request_id`, rotacion y redaccion de datos sensibles.
 - Auditoria persistente en PostgreSQL.
+- Copia de seguridad diaria de PostgreSQL (`pg_dump` en el servicio `backup`).
 
 ## Requisitos
 
@@ -69,6 +71,7 @@ Servicios:
 | Vision API | <http://localhost:8100> |
 | Swagger de vision | <http://localhost:8100/docs> |
 | PostgreSQL | `localhost:5432` |
+| Backup diario | volumen Docker `pgbackup` (`pg_dump` cada 24 h) |
 
 El contenedor `webapp` aplica las migraciones (`flask db upgrade`) antes de
 arrancar gunicorn. El contenedor `api` se construye con el Dockerfile existente
@@ -159,6 +162,8 @@ La app queda en <http://127.0.0.1:5000>.
 | `SESSION_COOKIE_SECURE` | Cookies solo por HTTPS | `0` |
 | `RATELIMIT_ENABLED` | Limite de intentos de login/registro | `1` |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Credenciales de Compose | ver `.env.example` |
+| `BACKUP_INTERVAL_SECONDS` | Segundos entre dumps de PostgreSQL | `86400` (1 dia) |
+| `BACKUP_KEEP_DAYS` | Dias de dumps a conservar | `7` |
 
 ## Logs
 
@@ -201,6 +206,20 @@ Retencion manual:
 docker compose exec webapp flask audit-prune --days 90
 ```
 
+## Persistencia y backup diario
+
+Cada inferencia se guarda al momento en PostgreSQL (`predictions`,
+`vision_predictions`, `audit_logs`). Ademas, Compose incluye el servicio
+`backup`: al arrancar hace un `pg_dump` y lo repite cada 24 h
+(`BACKUP_INTERVAL_SECONDS=86400`) en el volumen `pgbackup`. Conserva dumps de
+los ultimos `BACKUP_KEEP_DAYS` dias (por defecto 7).
+
+Ver el ultimo backup:
+
+```bash
+docker compose logs backup
+```
+
 ## Tests
 
 ```bash
@@ -222,6 +241,7 @@ app/
   hooks.py             Logs de requests y contexto
   errors.py            Paginas 403/404/500/503
   cli.py               create-admin, audit-prune
+scripts/               backup_postgres.sh (dump diario)
   models/              User, Prediction, AuditLog, VisionPrediction
   services/            ApiClient, VisionApiClient, game_profile, record_audit
   blueprints/          auth, main, admin, vision

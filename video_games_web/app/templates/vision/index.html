@@ -12,8 +12,9 @@
   <div>
     <h1 class="h4 mb-0">Estimar ventas desde una imagen</h1>
     <p class="text-muted mb-0 small">
-      Sube una portada o captura: el modelo detecta el tema visual, infiere un
-      perfil de videojuego y consulta el modelo de ventas globales.
+      Sube una portada o captura: el modelo de vision (CIFAR-10) reconoce el
+      tema visual, no el titulo del juego. Ese tema se traduce a un perfil
+      aproximado y se consulta el modelo de ventas globales.
     </p>
   </div>
   <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('vision.history') }}">Historial de vision</a>
@@ -31,6 +32,15 @@
     se puede estimar la venta global hasta que el servicio del puerto 8000 vuelva.
   </div>
 {% endif %}
+
+<div class="alert alert-info small">
+  <strong>Dataset CIFAR-10.</strong>
+  El clasificador no identifica el titulo ni la editorial reales. Reconoce una
+  de 10 clases visuales (avion, automovil, animal, barco, camion, etc.) entrenadas
+  con transfer learning. Esa clase se interpreta como tema de la imagen y se
+  convierte en un perfil aproximado (plataforma, genero, editorial y año) que
+  puedes corregir antes de recalcular la venta.
+</div>
 
 <div class="row g-4">
   <div class="col-lg-7">
@@ -69,7 +79,7 @@
           <input class="form-control" type="file" id="vision-file" name="image"
                  accept="image/jpeg,image/png,image/webp">
           <div class="form-text">
-            Tamano maximo: {{ max_upload_mb }} MB. La camara requiere abrir la app en
+            Tamaño maximo: {{ max_upload_mb }} MB. La camara requiere abrir la app en
             <code>localhost</code> o mediante HTTPS.
           </div>
           <button type="submit" class="btn btn-success mt-3" id="vision-submit">
@@ -116,7 +126,7 @@
                 <dd class="col-7 mb-1">{{ sale.genre }}</dd>
                 <dt class="col-5 text-muted">Editorial</dt>
                 <dd class="col-7 mb-1">{{ sale.publisher }}</dd>
-                <dt class="col-5 text-muted">Ano</dt>
+                <dt class="col-5 text-muted">Año</dt>
                 <dd class="col-7 mb-0">{{ sale.year }}</dd>
               </dl>
             </div>
@@ -155,7 +165,7 @@
                            name="publisher" maxlength="120" value="{{ sale.publisher }}">
                   </div>
                   <div class="col-5">
-                    <label class="form-label mb-1" for="recalc-year">Ano</label>
+                    <label class="form-label mb-1" for="recalc-year">Año</label>
                     <input class="form-control form-control-sm" id="recalc-year" name="year"
                            type="number" min="1970" max="2030" value="{{ sale.year }}">
                   </div>
@@ -217,7 +227,7 @@
           <ol class="small mb-0 ps-3">
             <li class="mb-2">Activa la camara o selecciona una portada/captura del videojuego.</li>
             <li class="mb-2">El backend envia la imagen a la Vision API y obtiene el tema visual.</li>
-            <li class="mb-2">Ese tema se traduce en plataforma, genero, editorial y ano aproximados.</li>
+            <li class="mb-2">Ese tema se traduce en plataforma, genero, editorial y año aproximados.</li>
             <li class="mb-2">La API de regresion estima las ventas globales con ese perfil.</li>
             <li class="mb-0">Puedes ajustar el perfil y recalcular si la inferencia no coincide.</li>
           </ol>

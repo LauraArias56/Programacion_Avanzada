@@ -46,7 +46,7 @@ def test_login_success_and_failure_are_audited(app, client):
     logout(client)
 
     failed = login(client, password="incorrecta")
-    assert b"Email o contrasena incorrectos" in failed.data
+    assert "Email o contraseña incorrectos".encode() in failed.data
 
     success = login(client)
     assert b"Sesion iniciada" in success.data

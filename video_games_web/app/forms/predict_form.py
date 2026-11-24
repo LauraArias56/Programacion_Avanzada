@@ -15,7 +15,7 @@ class PredictForm(FlaskForm):
         description="Si no aparece en el entrenamiento se agrupa como 'Other'.",
     )
     year = IntegerField(
-        "Ano de lanzamiento",
+        "Año de lanzamiento",
         validators=[DataRequired(), NumberRange(min=1970, max=2030)],
     )
     submit = SubmitField("Predecir ventas")

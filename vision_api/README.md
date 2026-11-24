@@ -31,9 +31,17 @@ gato/perro y automovil/camion, tipicas de CIFAR-10 a esta resolucion.
 
 ## Dataset
 
-Se usa CIFAR-10 mediante `torchvision.datasets.CIFAR10`. La descarga oficial
-desde `cs.toronto.edu` puede fallar por DNS o certificados; el script usa por
-defecto un mirror verificado de GitHub y permite cambiarlo:
+Se usa CIFAR-10 mediante `torchvision.datasets.CIFAR10` porque es un dataset de
+vision estandar, etiquetado y compatible con un backbone ImageNet: permite
+demostrar transfer learning (formateo 160 x 160, normalizacion ImageNet, tensor
+NCHW) sin exigir una GPU grande.
+
+**No identifica titulos de videojuegos.** Las 10 clases describen el contenido
+visual de la foto. La webapp interpreta esa clase como tema (carreras, naval,
+mascotas, etc.) y propone un perfil de juego que el usuario puede corregir.
+
+La descarga oficial desde `cs.toronto.edu` puede fallar por DNS o certificados;
+el script usa por defecto un mirror verificado de GitHub y permite cambiarlo:
 
 ```bash
 set CIFAR10_URL=https://otro-mirror/cifar-10-python.tar.gz

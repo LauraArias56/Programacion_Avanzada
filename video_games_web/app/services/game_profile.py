@@ -92,7 +92,7 @@ def _allowed(value: str, choices: list[str], fallback: str) -> str:
 
 
 def infer_game_profile(label: str, model_info: dict | None = None) -> dict:
-    """Devuelve plataforma, genero, editorial, ano y tema para una clase."""
+    """Devuelve plataforma, genero, editorial, año y tema para una clase."""
     profile = PROFILES_BY_LABEL.get(label, FALLBACK_PROFILE)
     info = model_info or {}
 
