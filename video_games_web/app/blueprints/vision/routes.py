@@ -26,7 +26,12 @@ from ...services.api_client import (
     get_api_client,
 )
 from ...services.audit import record_audit
-from ...services.game_profile import infer_game_profile, theme_for_label
+from ...services.game_profile import (
+    infer_game_profile,
+    infer_game_profile_from_genre,
+    theme_for_genre,
+    theme_for_label,
+)
 from ...services.vision_client import get_vision_client
 
 bp = Blueprint("vision", __name__, url_prefix="/vision")
@@ -98,7 +103,13 @@ def _sales_response(vision: VisionPrediction, sale: Prediction) -> dict:
         "prediction_id": vision.id,
         "label_es": vision.label_es,
         "confidence": float(vision.confidence),
-        "theme": vision.theme or theme_for_label(vision.label),
+        "model_kind": vision.model_kind,
+        "theme": vision.theme
+        or (
+            theme_for_genre(vision.label)
+            if vision.model_kind == "game_genre"
+            else theme_for_label(vision.label)
+        ),
         "profile": {
             "platform": sale.platform,
             "genre": sale.genre,
@@ -129,6 +140,15 @@ def index():
     except ApiError as exc:
         logger.warning("vision_model_info_unavailable", extra={"error": str(exc)})
 
+    game_info = None
+    if current_app.config["VISION_USE_GENRE_MODEL"]:
+        try:
+            game_info = vision_client.game_model_info()
+        except ApiError as exc:
+            logger.warning(
+                "vision_game_model_info_unavailable", extra={"error": str(exc)}
+            )
+
     api = get_api_client()
     sales_health = None
     sales_info = None
@@ -148,20 +168,26 @@ def index():
         if prediction is None or prediction.user_id != current_user.id:
             abort(404)
 
+    prediction_theme = None
+    if prediction is not None:
+        if prediction.model_kind == "game_genre":
+            prediction_theme = prediction.theme or theme_for_genre(prediction.label)
+        else:
+            prediction_theme = prediction.theme or theme_for_label(prediction.label)
+
     return render_template(
         "vision/index.html",
         health=health,
         info=info,
+        game_info=game_info,
         sales_health=sales_health,
         sales_info=sales_info,
         prediction=prediction,
-        prediction_theme=(
-            prediction.theme or theme_for_label(prediction.label)
-            if prediction
-            else None
-        ),
+        prediction_theme=prediction_theme,
         recent=_recent(current_user.id),
         max_upload_mb=current_app.config["VISION_MAX_UPLOAD_MB"],
+        genre_model_enabled=current_app.config["VISION_USE_GENRE_MODEL"],
+        genre_min_confidence=current_app.config["VISION_GENRE_MIN_CONFIDENCE"],
     )
 
 
@@ -194,36 +220,67 @@ def predict():
         source = "upload"
 
     vision_client = get_vision_client()
-    try:
-        result = vision_client.predict_image(
-            data,
-            filename=image.filename,
-            content_type=content_type,
-            top_k=3,
-        )
-    except ApiValidationError as exc:
-        record_audit(
-            "vision.prediction_failed",
-            status="failure",
-            metadata={"source": source, "filename": image.filename},
-            error=str(exc),
-        )
-        db.session.commit()
-        logger.warning(
-            "vision_prediction_rejected",
-            extra={"error": str(exc), "status": exc.status_code or 422},
-        )
-        return _error_response(str(exc), exc.status_code or 422)
-    except ApiUnavailable as exc:
-        record_audit(
-            "vision.prediction_failed",
-            status="failure",
-            metadata={"source": source, "filename": image.filename},
-            error=str(exc),
-        )
-        db.session.commit()
-        logger.error("vision_api_unavailable", extra={"error": str(exc)})
-        return _sales_unavailable(str(exc))
+    result = None
+    model_kind = "cifar10"
+
+    if current_app.config["VISION_USE_GENRE_MODEL"]:
+        try:
+            candidate = vision_client.predict_game_genre(
+                data,
+                filename=image.filename,
+                content_type=content_type,
+                top_k=3,
+            )
+            candidate_data = candidate.get("prediction") or {}
+            confidence = float(candidate_data.get("confidence", 0))
+            min_confidence = current_app.config["VISION_GENRE_MIN_CONFIDENCE"]
+            if candidate_data.get("label") and confidence >= min_confidence:
+                result = candidate
+                model_kind = "game_genre"
+            else:
+                logger.info(
+                    "vision_genre_low_confidence_fallback",
+                    extra={
+                        "confidence": confidence,
+                        "min_confidence": min_confidence,
+                    },
+                )
+        except ApiError as exc:
+            logger.info(
+                "vision_genre_unavailable_fallback", extra={"error": str(exc)}
+            )
+
+    if result is None:
+        try:
+            result = vision_client.predict_image(
+                data,
+                filename=image.filename,
+                content_type=content_type,
+                top_k=3,
+            )
+        except ApiValidationError as exc:
+            record_audit(
+                "vision.prediction_failed",
+                status="failure",
+                metadata={"source": source, "filename": image.filename},
+                error=str(exc),
+            )
+            db.session.commit()
+            logger.warning(
+                "vision_prediction_rejected",
+                extra={"error": str(exc), "status": exc.status_code or 422},
+            )
+            return _error_response(str(exc), exc.status_code or 422)
+        except ApiUnavailable as exc:
+            record_audit(
+                "vision.prediction_failed",
+                status="failure",
+                metadata={"source": source, "filename": image.filename},
+                error=str(exc),
+            )
+            db.session.commit()
+            logger.error("vision_api_unavailable", extra={"error": str(exc)})
+            return _sales_unavailable(str(exc))
 
     prediction_data = result.get("prediction") or {}
     label = prediction_data.get("label")
@@ -251,7 +308,20 @@ def predict():
             "La imagen se clasifico, pero la API de ventas no esta disponible."
         )
 
-    profile = infer_game_profile(label, sales_info)
+    if model_kind == "game_genre":
+        genre_profiles = None
+        try:
+            game_info = vision_client.game_model_info()
+            genre_profiles = (game_info or {}).get("genre_profiles")
+        except ApiError as exc:
+            logger.warning(
+                "vision_game_model_info_unavailable", extra={"error": str(exc)}
+            )
+        profile = infer_game_profile_from_genre(
+            label, sales_info, genre_profiles
+        )
+    else:
+        profile = infer_game_profile(label, sales_info)
     payload = _payload(profile)
 
     try:
@@ -324,6 +394,7 @@ def predict():
         metadata={
             "label": prediction.label,
             "confidence": float(prediction.confidence),
+            "model_kind": model_kind,
             "source": source,
             "theme": prediction.theme,
             "profile": payload,
@@ -338,6 +409,7 @@ def predict():
             "input": payload,
             "source": "vision",
             "vision_prediction_id": prediction.id,
+            "vision_model_kind": model_kind,
             "predicted_sales_millions": float(sale.predicted_sales_millions),
             "model_version": sale.model_version,
         },
@@ -350,6 +422,7 @@ def predict():
             "vision_prediction_id": prediction.id,
             "sales_prediction_id": sale.id,
             "label": prediction.label,
+            "model_kind": model_kind,
             "theme": prediction.theme,
             "profile": payload,
             "predicted_sales_millions": float(sale.predicted_sales_millions),

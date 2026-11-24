@@ -50,5 +50,11 @@ class VisionPrediction(db.Model):
         foreign_keys=[prediction_id],
     )
 
+    @property
+    def model_kind(self) -> str:
+        if (self.model_version or "").startswith("gamegenres-"):
+            return "game_genre"
+        return "cifar10"
+
     def __repr__(self) -> str:
         return f"<VisionPrediction {self.id} {self.label_es} {self.confidence}>"

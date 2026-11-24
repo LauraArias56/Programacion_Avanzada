@@ -12,9 +12,9 @@
   <div>
     <h1 class="h4 mb-0">Estimar ventas desde una imagen</h1>
     <p class="text-muted mb-0 small">
-      Sube una portada o captura: el modelo de vision (CIFAR-10) reconoce el
-      tema visual, no el titulo del juego. Ese tema se traduce a un perfil
-      aproximado y se consulta el modelo de ventas globales.
+      Sube una portada o captura: el modelo detecta el genero del videojuego,
+      infiere un perfil y consulta el modelo de ventas globales. Si el modelo de
+      generos no esta disponible, se usa el tema visual de CIFAR-10 como respaldo.
     </p>
   </div>
   <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('vision.history') }}">Historial de vision</a>
@@ -24,6 +24,12 @@
   <div class="alert alert-warning small">
     La Vision API no esta disponible. El historial sigue accesible, pero no se
     pueden clasificar imagenes nuevas. Verifica el servicio en el puerto 8100.
+  </div>
+{% endif %}
+{% if health and info and genre_model_enabled and not game_info %}
+  <div class="alert alert-info small">
+    El modelo de generos no esta disponible o no esta entrenado. Las imagenes se
+    clasificaran con CIFAR-10 y el perfil se inferira desde el tema visual.
   </div>
 {% endif %}
 {% if not sales_health or not sales_info %}
@@ -113,12 +119,16 @@
             <div class="rounded border bg-light p-3 mb-3">
               <div class="text-uppercase text-muted small mb-2">Perfil inferido</div>
               <dl class="row small mb-0">
-                <dt class="col-5 text-muted">Tema visual</dt>
+                <dt class="col-5 text-muted">Tema inferido</dt>
                 <dd class="col-7 text-capitalize mb-1">{{ prediction_theme }}</dd>
-                <dt class="col-5 text-muted">Clase detectada</dt>
+                <dt class="col-5 text-muted">Etiqueta detectada</dt>
                 <dd class="col-7 text-capitalize mb-1">
                   {{ prediction.label_es }}
                   ({{ "%.1f"|format(prediction.confidence|float * 100) }} %)
+                </dd>
+                <dt class="col-5 text-muted">Modelo visual</dt>
+                <dd class="col-7 mb-1">
+                  {{ "Genero de videojuego" if prediction.model_kind == "game_genre" else "CIFAR-10" }}
                 </dd>
                 <dt class="col-5 text-muted">Plataforma</dt>
                 <dd class="col-7 mb-1">{{ sale.platform }}</dd>
@@ -194,6 +204,7 @@
             <div class="text-muted mb-3">
               {{ prediction.label }} -
               {{ "%.1f"|format(prediction.confidence|float * 100) }} % de confianza
+              ({{ "modelo de generos" if prediction.model_kind == "game_genre" else "CIFAR-10" }})
             </div>
             <div class="alert alert-secondary small">
               Esta clasificacion es anterior a la integracion con ventas y no tiene
@@ -201,7 +212,7 @@
             </div>
           {% endif %}
 
-          <h3 class="h6 text-uppercase text-muted mb-2">Top 3 visual</h3>
+          <h3 class="h6 text-uppercase text-muted mb-2">Top 3 del modelo</h3>
           <ul class="list-group list-group-flush mb-3">
             {% for item in prediction.top_k %}
               <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
@@ -214,7 +225,8 @@
           </ul>
 
           <div class="small text-muted">
-            Modelo visual {{ prediction.model_version }}<br>
+            Modelo visual {{ prediction.model_version }}
+            ({{ "generos de videojuego" if prediction.model_kind == "game_genre" else "CIFAR-10" }})<br>
             Origen: {{ "camara" if prediction.source == "camera" else "archivo" }}
             {% if prediction.latency_ms %} - {{ "%.0f"|format(prediction.latency_ms) }} ms{% endif %}
           </div>

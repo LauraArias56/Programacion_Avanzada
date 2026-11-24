@@ -38,6 +38,10 @@ class Config:
     VISION_MAX_UPLOAD_MB = int(os.getenv("VISION_MAX_UPLOAD_MB", "8"))
     MAX_CONTENT_LENGTH = (VISION_MAX_UPLOAD_MB + 4) * 1024 * 1024
     VISION_HISTORY_PAGE_SIZE = int(os.getenv("VISION_HISTORY_PAGE_SIZE", "12"))
+    VISION_USE_GENRE_MODEL = _env_bool("VISION_USE_GENRE_MODEL", "1")
+    VISION_GENRE_MIN_CONFIDENCE = float(
+        os.getenv("VISION_GENRE_MIN_CONFIDENCE", "0.40")
+    )
 
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
     LOG_DIR = os.getenv("LOG_DIR", str(BASE_DIR / "logs"))
